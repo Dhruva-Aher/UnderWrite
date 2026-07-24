@@ -1,0 +1,34 @@
+{
+  "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+  "verdict": "blocked",
+  "reason_code": "TARGET_LEAKAGE",
+  "evaluated_at": "2026-07-24T15:45:00Z",
+  "evidence_paths": [
+    {
+      "feature_urn": "urn:li:mlFeature:(churn_features,discount_history)",
+      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
+      "field_name": "retention_discount",
+      "tag_found": "urn:li:tag:post_outcome",
+      "path": [
+        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+        "urn:li:mlFeature:(churn_features,discount_history)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)"
+      ]
+    }
+  ],
+  "unresolved_nodes": [],
+  "datahub_writeback": {
+    "tags_applied": [
+      "urn:li:tag:model_blocked"
+    ],
+    "incidents_created": [
+      {
+        "entity_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
+        "type": "TARGET_LEAKAGE",
+        "title": "Structural Target Leakage Intercepted by Underwrite"
+      }
+    ],
+    "institutional_memory_updated": true
+  }
+}

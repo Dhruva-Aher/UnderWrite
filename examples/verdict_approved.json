@@ -1,0 +1,15 @@
+{
+  "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+  "verdict": "approved",
+  "reason_code": "CLEAN",
+  "evaluated_at": "2026-07-24T15:45:00Z",
+  "evidence_paths": [],
+  "unresolved_nodes": [],
+  "datahub_writeback": {
+    "tags_applied": [
+      "urn:li:tag:governance_passed"
+    ],
+    "incidents_created": [],
+    "institutional_memory_updated": true
+  }
+}
