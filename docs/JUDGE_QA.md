@@ -44,7 +44,7 @@ DFS naturally reconstructs end-to-end evidence chains from the model root down t
 **Answer**:
 Underwrite separates **Graph Acquisition** from **Graph Traversal**:
 1. Acquisition fetches up to six upstream dataset hops relevant to the target model URN through the DataHub Python SDK.
-2. Traversal operates in-memory on the normalized sub-graph (`InternalGraph`) in under 40 milliseconds.
+2. Traversal operates in-memory on the normalized sub-graph (`InternalGraph`); no latency target is asserted by this repository.
 3. Write-backs run asynchronously as non-blocking side effects after the HTTP verdict is returned.
 
 ---

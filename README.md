@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 
 > **Metadata-driven policy enforcement engine built on DataHub.**  
-> *Underwrite turns deployment decisions into persistent governance memory inside DataHub.*
+> *Underwrite evaluates DataHub lineage and requests governance write-back after a decision.*
 
 Underwrite is a metadata-driven policy evaluation service built on DataHub. Its `/evaluate` endpoint reads ML-model, feature, dataset, tag, and available fine-grained-lineage aspects through the DataHub Python SDK, evaluates deterministic policies, and returns an approval or block verdict. A caller must enforce that verdict in its own deployment workflow.
 

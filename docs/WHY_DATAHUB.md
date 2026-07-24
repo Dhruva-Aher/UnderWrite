@@ -46,7 +46,7 @@ Most CI/CD checks return a transient status code (`0` or `1`) that disappears wh
 (Audit Link & Rationale)
 ```
 
-By persisting governance evidence back into DataHub, future data scientists browsing the catalog or building downstream models immediately see that a specific dataset or column was implicated in a blocked deployment.
+When DataHub accepts the requested write-back, governance evidence is recorded against the relevant entities for later catalog inspection.
 
 ---
 
@@ -56,6 +56,6 @@ By persisting governance evidence back into DataHub, future data scientists brow
 | :--- | :--- | :--- |
 | **Static Code Linter** (e.g., SQLFluff) | Cannot trace runtime lineage across heterogeneous tools (dbt to Snowflake to MLflow). | DataHub unifies cross-platform metadata into a single searchable lineage graph. |
 | **Data Quality Framework** (e.g., Great Expectations) | Checks data value distributions (NULLs, bounds), not temporal provenance. | Target leakage features often look statistically valid; Underwrite checks structural lineage. |
-| **Data Observability** (e.g., Monte Carlo) | Detects anomalies *after* data reaches production. | Underwrite operates *pre-deployment* at the CI/CD gate before predictions are served. |
+| **Data Observability** (e.g., Monte Carlo) | Detects anomalies *after* data reaches production. | Underwrite evaluates a deployment request before a caller chooses whether to deploy. |
 | **Custom Graph Database** (e.g., Neo4j) | Requires building custom connectors, catalog UI, and entity models from scratch. | DataHub provides metadata ingestion, a Python SDK, REST services, and entity models. |
 | **Alternative Catalogs** (e.g., OpenMetadata, Amundsen) | Differing API schemas and less fine-grained ML entity support (`MLModel`, `MLFeature`). | DataHub offers native ML entity abstractions and fine-grained column lineage primitives. |

@@ -63,6 +63,15 @@ def test_depth_limit_fails_closed():
     assert verdict.reason_code == "INCOMPLETE_LINEAGE"
 
 
+def test_model_without_features_fails_closed(mock_client: MockMetadataClient):
+    mock_client.aspects[MODEL_CHURN][sc.MLModelPropertiesClass].mlFeatures = []
+
+    verdict = Agent(mock_client).evaluate_model(MODEL_CHURN)
+
+    assert verdict.verdict == "blocked"
+    assert verdict.reason_code == "INCOMPLETE_LINEAGE"
+
+
 def test_agent_evaluate_clean_model(mock_client: MockMetadataClient):
     """Test Agent approving a clean model with no leak tags."""
     clean_model_urn = make_ml_model_urn("clean_model_v1")

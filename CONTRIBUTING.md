@@ -36,7 +36,7 @@ python test_full_suite.py
 ## Architecture Guidelines
 - **Deterministic Enforcement**: All policy graph traversal logic must remain 100% deterministic inside `agent.py`.
 - **Decoupled Engine**: Graph traversal must operate strictly on in-memory `InternalGraph` instances and never make SDK calls during search.
-- **Async Write-Back**: DataHub REST/GraphQL write-backs in `datahub_client.py` must run as non-blocking side effects.
+- **Async Write-Back**: DataHub write-backs in `datahub_client.py` must run as non-blocking side effects.
 
 ---
 

@@ -7,7 +7,7 @@ uvicorn==0.34.3
 pydantic-settings==2.14.2
 PyYAML==6.0.3
 
-# HTTP client (for DataHub health checks, LLM calls)
+# HTTP clients for DataHub health checks and SDK communication
 httpx==0.28.1
 requests==2.34.2
 

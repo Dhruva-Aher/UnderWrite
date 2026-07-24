@@ -362,6 +362,14 @@ class PolicyEvaluator:
 
         feature_urns = graph.adjacency.get(root_urn, [])
 
+        if not feature_urns:
+            return VerdictInternal(
+                model_urn=root_urn,
+                verdict="blocked",
+                reason_code="INCOMPLETE_LINEAGE",
+                unresolved_nodes=[root_urn],
+            )
+
         for feat_urn in feature_urns:
             visited_in_path: set[str] = set()
             self._dfs_evaluate(

@@ -4,6 +4,7 @@ import logging
 from typing import Any, Protocol
 
 import requests
+import datahub.metadata.schema_classes as sc
 
 from exceptions import (
     AuthenticationError,
