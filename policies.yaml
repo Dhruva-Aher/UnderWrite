@@ -1,0 +1,22 @@
+# Underwrite Policy Engine Configuration (policies.yaml)
+
+policies:
+  - id: ML-LEAK-001
+    name: Target Leakage Prevention Policy
+    enabled: true
+    target_tags:
+      - post_outcome
+      - is_target
+    description: Prevents models from training on features derived from post-outcome datasets.
+
+  - id: ML-TEMPORAL-001
+    name: Post-Prediction Tag Policy
+    enabled: true
+    target_tags:
+      - post_prediction
+    description: Blocks training provenance carrying the post_prediction tag.
+
+  - id: ML-FAIL-CLOSED
+    name: Lineage Provenance Policy
+    enabled: true
+    description: Blocks models with untracked or unresolvable upstream lineage provenance.
