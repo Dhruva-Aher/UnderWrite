@@ -11,7 +11,7 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -21,6 +21,7 @@ from config import settings
 from datahub_client import DataHubWriteBackClient, process_verdict_writeback_event
 from exceptions import UnderwriteError
 from metadata.client import DataHubClient
+from hypothesis_generator import RemediationRequest, generate_hypothesis
 
 logger = logging.getLogger("underwrite.server")
 
@@ -30,7 +31,7 @@ app = FastAPI(
 )
 
 BASE_DIR = Path(__file__).parent
-STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR = BASE_DIR / "web" / "static"
 CACHE_DIR = BASE_DIR / "cache"
 
 
@@ -68,6 +69,9 @@ CACHED_VERDICTS = load_cached_verdicts()
 
 class EvaluateRequest(BaseModel):
     model_urn: str = Field(..., description="Canonical DataHub ML Model URN")
+    environment: str = Field(default="PROD", description="Target environment for the deployment")
+    action: str = Field(default="DEPLOY", description="Requested authorization action")
+    requested_by: str = Field(default="urn:li:corpuser:unknown", description="Principal requesting the action")
 
     @field_validator("model_urn")
     @classmethod
@@ -120,7 +124,9 @@ def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
             "label": node.name,
             "type": type_map.get(node.type, "unknown"),
             "urn": urn,
+            "description": node.description,
             "tags": sorted(node.tags),
+            "glossaryTerms": sorted(node.glossary_terms),
             "isLeakNode": urn in evidence_nodes,
             "x": 24 + (max(depths.values(), default=0) - depth) * 190,
             "y": 24 + row * 72,
@@ -140,55 +146,56 @@ def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
 
 
 def format_verdict_response(
-    model_urn: str, verdict_obj: VerdictInternal, graph: InternalGraph
+    request: EvaluateRequest, request_id: str, latency_ms: int, verdict_obj: VerdictInternal, graph: InternalGraph
 ) -> dict:
     """Transform internal VerdictInternal object into UI response payload."""
     if verdict_obj.reason_code == "TARGET_LEAKAGE":
         headline = "Blocked — trained on data it shouldn’t have seen."
         explanation = "Target leakage detected in the acquired DataHub provenance graph."
-        write_back = {
-            "tag": "model-at-risk",
-            "incident": True,
-            "text": "Write-back requested: model-at-risk tag and source-dataset incident.",
-        }
+        write_back = [
+            {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"},
+            {"entity": "Dataset", "urn": getattr(verdict_obj.evidence_paths[0], "tainted_urn", "unknown") if verdict_obj.evidence_paths else "unknown", "aspect": "incidents", "operation": "CREATE", "status": "REQUESTED"}
+        ]
     elif verdict_obj.reason_code == "INCOMPLETE_LINEAGE":
         headline = "Blocked — insufficient lineage to approve."
         explanation = "The acquired DataHub provenance graph is incomplete; approval is denied."
-        write_back = {
-            "tag": "model-at-risk",
-            "incident": True,
-            "text": "Write-back requested: model-at-risk tag and incomplete-lineage incident.",
-        }
+        write_back = [
+            {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"},
+            {"entity": "MLModel", "urn": request.model_urn, "aspect": "incidents", "operation": "CREATE", "status": "REQUESTED"}
+        ]
     elif verdict_obj.verdict == "approved":
         headline = "Approved — full lineage resolved. No policy flags."
         explanation = "All configured policies completed without a match on the acquired DataHub provenance graph."
-        write_back = {
-            "tag": "model-approved",
-            "incident": False,
-            "text": "Write-back requested: model-approved tag and verdict documentation.",
-        }
+        write_back = [
+            {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"}
+        ]
     else:
         headline = "Blocked — a configured policy was violated."
         explanation = "A configured DataHub governance policy matched the acquired provenance graph."
-        write_back = {
-            "tag": "model-at-risk",
-            "incident": True,
-            "text": "Write-back requested: model-at-risk tag and source-dataset incident.",
-        }
+        write_back = [
+            {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"}
+        ]
 
     evidence_paths_serialized = [
         (
             {
+                "id": f"ev-{(i+1):02d}",
                 "feature_urn": ep.feature_urn,
                 "tainted_urn": ep.tainted_urn,
                 "tag_found": ep.tag_found,
                 "path": ep.path,
                 "policy_id": ep.policy_id,
+                "field_name": ep.field_name,
+                "verdict": ep.verdict,
+                "transform": ep.transform,
+                "confidence": ep.confidence,
+                "aspectPath": ep.aspect_path,
+                "rationale": ep.rationale,
             }
             if hasattr(ep, "feature_urn")
             else ep
         )
-        for ep in verdict_obj.evidence_paths
+        for i, ep in enumerate(verdict_obj.evidence_paths)
     ]
 
     execution_events_serialized = [
@@ -206,17 +213,32 @@ def format_verdict_response(
     ]
 
     return {
-        "model_urn": model_urn,
-        "verdict": verdict_obj.verdict,
-        "reason_code": verdict_obj.reason_code,
-        "headline": headline,
-        "explanation": explanation,
+        "request": {
+            "model_urn": request.model_urn,
+            "environment": request.environment,
+            "action": request.action,
+            "requested_by": request.requested_by,
+            "request_id": request_id,
+            "gms_endpoint": settings.gms_url,
+        },
+        "evaluation": {
+            "verdict": verdict_obj.verdict,
+            "reason_code": verdict_obj.reason_code,
+            "headline": headline,
+            "explanation": explanation,
+            "latency_ms": latency_ms,
+            "policies_evaluated": verdict_obj.policies_evaluated,
+            "denials": sum(1 for ep in verdict_obj.evidence_paths if ep.verdict == "BLOCKED"),
+            "warnings": sum(1 for ep in verdict_obj.evidence_paths if ep.verdict == "WARN"),
+            "allowances": sum(1 for ep in verdict_obj.evidence_paths if ep.verdict == "APPROVED"),
+        },
         "graph": graph_to_ui_payload(graph, verdict_obj),
         "write_back": write_back,
         "evidence_paths": evidence_paths_serialized,
         "execution_events": execution_events_serialized,
         "evaluated_at": datetime.now(timezone.utc).isoformat(),
         "evaluation_source": "live_datahub",
+        "remediation_available": verdict_obj.verdict == "blocked" and bool(evidence_paths_serialized),
     }
 
 
@@ -224,56 +246,104 @@ def format_verdict_response(
 async def evaluate_model_route(
     request: EvaluateRequest, background_tasks: BackgroundTasks
 ):
+    import uuid
+    import time
+
     """Evaluate a model for deployment safety."""
-    model_urn = request.model_urn
+    request_id = f"UW-REQ-{str(uuid.uuid4())[:8].upper()}"
+    start_time = time.time()
     response_payload = None
 
     try:
         client = get_metadata_client()
         if client:
             agent = Agent(client=client, settings=settings)
-            internal_verdict = agent.evaluate_model(model_urn)
+            internal_verdict = agent.evaluate_model(request.model_urn)
             graph = agent.last_graph
             if graph is None:
                 raise UnderwriteError("Evaluation completed without a graph")
-            response_payload = format_verdict_response(model_urn, internal_verdict, graph)
+            latency_ms = int((time.time() - start_time) * 1000)
+            response_payload = format_verdict_response(request, request_id, latency_ms, internal_verdict, graph)
     except (UnderwriteError, OSError, ValueError) as e:
         logger.warning(
             "Live evaluation failed (%s) — returning cached verdict fallback", e
         )
 
     if not response_payload:
-        cached = CACHED_VERDICTS.get(model_urn)
+        cached = CACHED_VERDICTS.get(request.model_urn)
         if cached:
             response_payload = dict(cached)
-            response_payload["model_urn"] = model_urn
+            response_payload.setdefault("request", {})["model_urn"] = request.model_urn
+            response_payload["request"]["environment"] = request.environment
+            response_payload["request"]["action"] = request.action
+            response_payload["request"]["requested_by"] = request.requested_by
+            response_payload["request"]["request_id"] = request_id
+            response_payload["request"]["gms_endpoint"] = settings.gms_url
             response_payload["evaluated_at"] = datetime.now(timezone.utc).isoformat()
             response_payload["evaluation_source"] = "cached_fixture"
-            # Fixtures contain illustrative write-back fields, not evidence that
-            # this request emitted metadata to a live GMS instance.
             response_payload["write_back"] = None
         else:
             response_payload = {
-                "model_urn": model_urn,
-                "verdict": "blocked",
-                "reason_code": "EVALUATION_FAILED",
-                "headline": "Blocked — evaluation unavailable.",
-                "explanation": f"No evaluation data available for model: {model_urn}",
+                "request": {
+                    "model_urn": request.model_urn,
+                    "environment": request.environment,
+                    "action": request.action,
+                    "requested_by": request.requested_by,
+                    "request_id": request_id,
+                    "gms_endpoint": settings.gms_url,
+                },
+                "evaluation": {
+                    "verdict": "blocked",
+                    "reason_code": "EVALUATION_FAILED",
+                    "headline": "Blocked — evaluation unavailable.",
+                    "explanation": f"No evaluation data available for model: {request.model_urn}",
+                    "latency_ms": int((time.time() - start_time) * 1000),
+                    "policies_evaluated": 0,
+                    "denials": 0,
+                    "warnings": 0,
+                    "allowances": 0,
+                },
                 "graph": None,
                 "write_back": None,
+                "evidence_paths": [],
+                "execution_events": [],
                 "evaluated_at": datetime.now(timezone.utc).isoformat(),
                 "evaluation_source": "unavailable",
+                "remediation_available": False,
             }
 
-    background_tasks.add_task(
-        process_verdict_writeback_event, response_payload, settings.gms_url
-    )
+    # A cached fixture is presentation data, not evidence from a particular
+    # DataHub request.  Never turn it into a live governance write-back.
+    if response_payload["evaluation_source"] == "live_datahub":
+        background_tasks.add_task(
+            process_verdict_writeback_event, response_payload, settings.gms_url
+        )
     return response_payload
 
 
+@app.post("/remediation/{decision_id}")
+async def remediation_route(decision_id: str, request: RemediationRequest):
+    """Generate an AI remediation plan for a blocked deployment using DataHub context."""
+    return generate_hypothesis(request)
+
+
 @app.post("/override")
-async def override_verdict(request: OverrideRequest, background_tasks: BackgroundTasks):
+async def override_verdict(
+    request: OverrideRequest,
+    background_tasks: BackgroundTasks,
+    x_underwrite_override_token: str | None = Header(default=None),
+):
     """Record a named override statement for the supplied model URN."""
+    if not settings.override_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Overrides are disabled until UNDERWRITE_OVERRIDE_TOKEN is configured.",
+        )
+    if x_underwrite_override_token != settings.override_token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A valid X-Underwrite-Override-Token is required.",
+        )
     timestamp = datetime.now(timezone.utc).isoformat()
     logger.info(
         "OVERRIDE: model=%s signer=%s at=%s",
@@ -311,8 +381,8 @@ async def serve_index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/assets", StaticFiles(directory="web/static/assets"), name="assets")
+app.mount("/static", StaticFiles(directory="web/frontend"), name="static")
 
 
 def main():

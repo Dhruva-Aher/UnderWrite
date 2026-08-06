@@ -11,13 +11,23 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "INFO"
     policy_path: str = "policies.yaml"
+    # Overrides are a privileged exception to a blocked decision.  Keep them
+    # disabled unless an operator explicitly provisions a secret.
+    override_token: str | None = None
+
+    # LLM Settings
+    llm_provider: str = "openai"  # Options: openai, anthropic, gemini
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    google_api_key: str | None = None
+    azure_openai_api_key: str | None = None
+    azure_openai_endpoint: str | None = None
 
     model_config = SettingsConfigDict(
         env_prefix="UNDERWRITE_",
         case_sensitive=False,
         extra="ignore",
     )
-
 
 # Single global settings instance for application entry points
 settings = Settings()

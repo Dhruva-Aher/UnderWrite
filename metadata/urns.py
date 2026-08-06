@@ -16,7 +16,7 @@ def make_ml_model_urn(
     model_name: str, platform: str = "mlflow", env: str = "PROD"
 ) -> str:
     """Generate canonical ML Model URN."""
-    return _make_ml_model_urn(model_name=model_name, platform=platform, env=env)
+    return _make_ml_model_urn(platform, model_name, env)
 
 
 def make_dataset_urn(
@@ -37,7 +37,7 @@ MODEL_REC = make_ml_model_urn("recommendation_model_v1")
 MODEL_FRAUD = make_ml_model_urn("fraud_model_v3")
 MODEL_TEST = make_ml_model_urn("test_model_v1")
 
-DATASET_RAW_BILLING = make_dataset_urn("raw_billing_records")
+DATASET_RAW_BILLING = make_dataset_urn("raw_billing")
 DATASET_CUSTOMER_PROFILES = make_dataset_urn("customer_profiles")
 DATASET_BILLING_CLEAN = make_dataset_urn("billing_clean")
 DATASET_FEATURES_ENG = make_dataset_urn("engineered_features_v1")
