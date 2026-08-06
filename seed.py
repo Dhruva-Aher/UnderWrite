@@ -28,6 +28,7 @@ Implementation Pattern:
 """
 
 import logging
+import os
 
 import datahub.metadata.schema_classes as sc
 from datahub.emitter.mce_builder import (
@@ -48,7 +49,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("underwrite.seed")
 
-GMS_URL = "http://localhost:8080"
+GMS_URL = os.getenv("UNDERWRITE_GMS_URL", "http://localhost:8080")
 
 # ---------------------------------------------------------------------------
 # Canonical URN Constants (Built using official mce_builder helpers)
