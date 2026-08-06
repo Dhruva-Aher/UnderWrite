@@ -1,0 +1,15 @@
+{
+  "investigation_id": "INV-2026-F9B2",
+  "policy": "Target Leakage Prevention",
+  "status": "BLOCKED",
+  "root_cause": "Removed column 'customer_status' severing 14 edges.",
+  "blast_radius": {
+    "datasets": 11,
+    "models": 2,
+    "dashboards": 11,
+    "owner": "@data-eng-team"
+  },
+  "confidence": 0.99,
+  "verification_summary": "Deterministic check identified +94 Risk Score based on DataHub graph. PR blocked.",
+  "ready_for_pr": false
+}

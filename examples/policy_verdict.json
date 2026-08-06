@@ -1,0 +1,22 @@
+{
+  "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+  "verdict": "blocked",
+  "reason_code": "TARGET_LEAKAGE",
+  "policies_evaluated": 3,
+  "risk_score": 94,
+  "evidence_paths": [
+    {
+      "feature_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)",
+      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_summary,PROD),status)",
+      "tag_found": "urn:li:tag:PII",
+      "verdict": "BLOCKED"
+    }
+  ],
+  "explanation": {
+    "title": "Target Leakage Prevention Policy",
+    "cause": "Column dropped: customer_status",
+    "impact": "11 dashboards, 2 ML models",
+    "risk_score": 94,
+    "decision": "Block merge"
+  }
+}
