@@ -42,7 +42,7 @@ def mock_client() -> MockMetadataClient:
         },
         DATASET_RAW_BILLING: {
             sc.DatasetPropertiesClass: sc.DatasetPropertiesClass(
-                name="raw_billing_records"
+                name="raw_billing"
             ),
             sc.GlobalTagsClass: sc.GlobalTagsClass(
                 tags=[sc.TagAssociationClass(tag="urn:li:tag:post_outcome")]
