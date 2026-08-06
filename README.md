@@ -2,6 +2,21 @@
 
 **Underwrite** is a deterministic verification framework built on DataHub that prevents metadata-breaking schema changes before they merge.
 
+## Demo
+
+🎥 3-minute demo: <YouTube link>
+
+## Devpost
+
+🏆 https://datahub.devpost.com/
+
+## Sample Outputs
+
+- [semantic_delta.json](examples/semantic_delta.json)
+- [policy_verdict.json](examples/policy_verdict.json)
+- [risk_report.json](examples/risk_report.json)
+- [github_comment.md](examples/github_comment.md)
+
 ![Underwrite 10-Second Demo](docs/screenshots/01-hero.png)
 *(Imagine a 10-second GIF here: Column removed → Graph changes → Policy violation → Risk score → Remediation → Pass)*
 
