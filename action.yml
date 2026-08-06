@@ -1,0 +1,41 @@
+name: "Underwrite Deployment Gate"
+description: "The executable trust layer for DataHub. Blocks non-compliant ML models before they deploy."
+branding:
+  icon: "shield"
+  color: "red"
+
+inputs:
+  model-urn:
+    description: "The canonical DataHub URN of the ML Model being deployed (e.g., 'urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)')"
+    required: true
+  api-url:
+    description: "The Underwrite API URL endpoint"
+    required: false
+    default: "http://127.0.0.1:8000"
+  timeout-seconds:
+    description: "Maximum time to wait for graph evaluation"
+    required: false
+    default: "15.0"
+
+outputs:
+  verdict:
+    description: "The final evaluation verdict ('approved' or 'blocked')"
+  decision_id:
+    description: "The unique ID for this execution (e.g., UW-REQ-XXXXX)"
+  reason_code:
+    description: "The policy code that triggered the decision (e.g., TARGET_LEAKAGE)"
+  latency_ms:
+    description: "The duration of the graph traversal in milliseconds"
+  evaluation_source:
+    description: "The source of the evaluation (e.g., live_datahub)"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - "--model-urn"
+    - ${{ inputs.model-urn }}
+    - "--api-url"
+    - ${{ inputs.api-url }}
+    - "--timeout-seconds"
+    - ${{ inputs.timeout-seconds }}
