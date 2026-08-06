@@ -26,7 +26,7 @@
   └───────────┬────────────┘
               │
   ┌───────────▼────────────┐
-  │ 5. Verdict Construction│  Produces structured VerdictInternal & non-blocking write-back
+  │ 5. Verdict Construction│  Produces VerdictInternal & requested DataHub metadata mutations
   └────────────────────────┘
 ```
 
@@ -48,18 +48,33 @@
 
 ---
 
-## 3. DataHub Write-Back & Invariant 4
+## 3. Requested DataHub Metadata Mutations & Invariant 4
 
-**Invariant 4**: Write-back is a pure side effect. Verdict generation and UI rendering **NEVER** depend on write-back success.
+**Invariant 4**: A requested DataHub metadata mutation is a pure side effect. Verdict generation and UI rendering **NEVER** depend on mutation confirmation.
 
 When `/evaluate` receives a request:
 1. `Agent.evaluate_model()` generates the verdict immediately.
 2. The endpoint returns `HTTP 200 OK` payload to the client.
-3. Write-back operations (`write_verdict_tag`, `write_incident`, `write_documentation`) are scheduled as non-blocking `BackgroundTasks`.
+3. DataHub metadata mutation requests (`write_verdict_tag`, `write_incident`, `write_documentation`) are scheduled as non-blocking `BackgroundTasks`.
+
+DataHub metadata mutation requests are scheduled only when `evaluation_source` is `live_datahub`.
+Bundled cached fixtures are deliberately excluded: a fixture must never mutate
+an enterprise metadata catalog.
+
+## 4. Deployment Enforcement Boundary
+
+The service returns a governance decision; the bundled
+[`scripts/deployment_gate.py`](scripts/deployment_gate.py) is the fail-closed
+caller used by CI/CD. It exits successfully only when `/evaluate` returns both
+`verdict: approved` and `evaluation_source: live_datahub`. This makes the
+deployment boundary executable rather than a documentation convention.
+
+`/override` is disabled unless `UNDERWRITE_OVERRIDE_TOKEN` is configured, and
+requires that value in the `X-Underwrite-Override-Token` header.
 
 ---
 
-## 4. Configuration Reference
+## 5. Configuration Reference
 
 Configuration settings are loaded automatically from environment variables (prefixed with `UNDERWRITE_` or default keys):
 
@@ -70,10 +85,11 @@ Configuration settings are loaded automatically from environment variables (pref
 | `UNDERWRITE_PORT` | `8000` | Application server port |
 | `UNDERWRITE_LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `UNDERWRITE_POLICY_PATH` | `policies.yaml` | YAML policy definitions filepath |
+| `UNDERWRITE_OVERRIDE_TOKEN` | unset (disabled) | Required secret for privileged override writes |
 
 ---
 
-## 5. Testing & Local Development
+## 6. Testing & Local Development
 
 ### Run Unit Test Suite (100% Offline, Zero Network Calls)
 ```bash

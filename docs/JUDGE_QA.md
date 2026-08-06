@@ -30,7 +30,7 @@ Underwrite follows a strict **pessimistic evaluation rule**. If any policy retur
 
 ### Q5: Can Underwrite support new policy types?
 **Answer**:
-Yes. Underwrite separates graph traversal from rule evaluation via `PolicyEvaluator` and `policies.yaml`. New rules (e.g., PII/GDPR data access restrictions or temporal timestamp boundaries) are added by defining target tags and predicates in `policies.yaml` without changing graph search code.
+Yes. **We demonstrate separating** graph traversal from rule evaluation via `PolicyEvaluator` and `policies.yaml`. New rules (e.g., PII/GDPR data access restrictions or temporal timestamp boundaries) are added by defining target tags and predicates in `policies.yaml` without changing graph search code.
 
 ---
 
@@ -42,7 +42,7 @@ DFS naturally reconstructs end-to-end evidence chains from the model root down t
 
 ### Q7: How does this scale with larger lineage graphs?
 **Answer**:
-Underwrite separates **Graph Acquisition** from **Graph Traversal**:
+**We demonstrate separating** **Graph Acquisition** from **Graph Traversal**:
 1. Acquisition fetches up to six upstream dataset hops relevant to the target model URN through the DataHub Python SDK.
 2. Traversal operates in-memory on the normalized sub-graph (`InternalGraph`); no latency target is asserted by this repository.
 3. Write-backs run asynchronously as non-blocking side effects after the HTTP verdict is returned.

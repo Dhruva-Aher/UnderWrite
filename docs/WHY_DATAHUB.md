@@ -1,6 +1,6 @@
 # Why DataHub? Architectural Rationale & Alternatives Comparison
 
-Underwrite relies on DataHub as both a **metadata source** and a **governance memory destination**. This document details why DataHub provides the fine-grained lineage model and APIs that make this implementation practical without building a metadata platform from scratch.
+**Underwrite demonstrates relying** on DataHub as both a **metadata source** and a **governance memory destination**. This document details why DataHub provides the fine-grained lineage model and APIs that make this implementation practical without building a metadata platform from scratch.
 
 ---
 
@@ -26,13 +26,23 @@ Target leakage rarely manifests at the top-level dataset schema. Instead, it occ
 If a governance tool only checks tags directly on `churn_features` or `churn_model_v2`, it finds zero tags. The feature appears clean.
 
 ### Why DataHub Lineage Succeeds:
-DataHub captures fine-grained, column-level lineage (`FineGrainedLineage`) across transformations and data platforms. Underwrite reads available field lineage and field tags, and the demo traces `stg_billing.discount_history` to `raw_billing.retention_discount`, which carries the `post_outcome` tag.
+DataHub captures fine-grained, column-level lineage (`FineGrainedLineage`) across transformations and data platforms. We demonstrate reading available field lineage and field tags, tracing `stg_billing.discount_history` to `raw_billing.retention_discount`, which carries the `post_outcome` tag.
 
 ---
 
-## 2. Governance Memory: From Intercept to Organizational Knowledge
+## 2. Semantic Governance: Tags vs. Glossary Terms
 
-Most CI/CD checks return a transient status code (`0` or `1`) that disappears when the build pipeline closes. Underwrite converts deployment verdicts into **governance memory** inside DataHub:
+While many tools treat governance as simple string-matching, DataHub provides robust semantic primitives. Underwrite integrates deeply with both:
+- **GlobalTags**: Ad-hoc, flexible labels (e.g., `post_outcome`, `is_target`).
+- **GlossaryTerms**: Strongly typed, hierarchical, centrally managed business vocabulary (e.g., `urn:li:glossaryTerm:PostOutcome`).
+
+**Underwrite demonstrates seamlessly merging** both into its internal graph, enabling organizations to enforce policies using centrally managed Glossary Terms while preserving developer agility with Tags.
+
+---
+
+## 3. Governance Memory: From Intercept to Organizational Knowledge
+
+Most CI/CD checks return a transient status code (`0` or `1`) that disappears when the build pipeline closes. **We demonstrate converting** deployment verdicts into **governance memory** inside DataHub:
 
 ```
 [MLModel] ──► [MLFeature] ──► [Dataset]
@@ -50,7 +60,7 @@ When DataHub accepts the requested write-back, governance evidence is recorded a
 
 ---
 
-## 3. Alternatives Comparison Matrix
+## 4. Alternatives Comparison Matrix
 
 | Alternative Approach | Primary Limitation | Underwrite + DataHub Architecture |
 | :--- | :--- | :--- |
