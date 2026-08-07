@@ -10,20 +10,52 @@
   "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)": {
     "MLFeaturePropertiesClass": {
       "sources": [
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD)"
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,model_input,PROD)"
+      ]
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:snowflake,model_input,PROD)": {
+    "DatasetPropertiesClass": {
+      "name": "model_input"
+    },
+    "UpstreamLineageClass": {
+      "upstreams": [
+        {"dataset": "urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD)", "type": "TRANSFORMED"}
+      ],
+      "fineGrainedLineages": [
+        {
+          "upstreamType": "FIELD_SET",
+          "downstreamType": "FIELD_SET",
+          "transformOperation": "CAST",
+          "downstreams": ["urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,model_input,PROD),status)"],
+          "upstreams": ["urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD),status_cleaned)"]
+        }
+      ]
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD)": {
+    "DatasetPropertiesClass": {
+      "name": "intermediate"
+    },
+    "UpstreamLineageClass": {
+      "upstreams": [
+        {"dataset": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD)", "type": "TRANSFORMED"}
+      ],
+      "fineGrainedLineages": [
+        {
+          "upstreamType": "FIELD_SET",
+          "downstreamType": "FIELD_SET",
+          "transformOperation": "CLEANSE",
+          "downstreams": ["urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD),status_cleaned)"],
+          "upstreams": ["urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)"]
+        }
       ]
     }
   },
   "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD)": {
     "DatasetPropertiesClass": {
+      "name": "raw.customers",
       "description": "Raw Customers"
-    },
-    "GlobalTagsClass": {
-      "tags": [
-        {
-          "tag": "urn:li:tag:is_target"
-        }
-      ]
     },
     "SchemaMetadataClass": {
       "schemaName": "customers",
@@ -35,38 +67,22 @@
       },
       "fields": [
         {
-          "fieldPath": "id",
-          "type": {
-            "type": {
-              "com.linkedin.pegasus2avro.schema.StringType": {}
-            }
-          },
-          "nativeDataType": "VARCHAR"
-        },
-        {
-          "fieldPath": "customer_name",
-          "type": {
-            "type": {
-              "com.linkedin.pegasus2avro.schema.StringType": {}
-            }
-          },
-          "nativeDataType": "VARCHAR"
-        },
-        {
           "fieldPath": "customer_status",
           "type": {
             "type": {
               "com.linkedin.pegasus2avro.schema.StringType": {}
             }
           },
-          "nativeDataType": "VARCHAR",
-          "globalTags": {
-            "tags": [
-              {
-                "tag": "urn:li:tag:is_target"
-              }
-            ]
-          }
+          "nativeDataType": "VARCHAR"
+        }
+      ]
+    }
+  },
+  "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)": {
+    "GlobalTagsClass": {
+      "tags": [
+        {
+          "tag": "urn:li:tag:post_outcome"
         }
       ]
     }

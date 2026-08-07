@@ -59,6 +59,7 @@ def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) ->
         print(f"  Response: {exc.response.text}")
         return 1
 
+def process_payload(api_url: str, payload: dict) -> int:
     # 2. Extract fields
     req = payload.get("request", {})
     evl = payload.get("evaluation", {})
@@ -69,6 +70,7 @@ def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) ->
     decision_id = req.get("request_id", "UNKNOWN")
     evidence_paths = payload.get("evidence_paths", [])
     remediation_available = payload.get("remediation_available", False)
+    timeout_seconds = 15.0
 
     # Write Outputs
     set_github_output("verdict", verdict)
@@ -139,6 +141,31 @@ def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) ->
     print(f"::error title=Underwrite: {reason_code}::Deployment blocked. {evidence_str}")
     
     return 1
+
+def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) -> int:
+    """Call Underwrite and translate its result into a CI-safe decision with rich output."""
+    endpoint = f"{api_url.rstrip('/')}/evaluate"
+    
+    print(f"\n{BOLD}{CYAN}Underwrite ━━ Executable Metadata{RESET}")
+    print(f"{GRAY}Evaluating deployment against DataHub graph...{RESET}\n")
+    
+    # 1. Fetch payload
+    try:
+        with httpx.Client(timeout=timeout_seconds) as client:
+            response = client.post(endpoint, json={"model_urn": model_urn})
+        response.raise_for_status()
+        payload = response.json()
+    except (httpx.RequestError, ValueError) as exc:
+        print(f"{BOLD}{RED}error:{RESET} Failed to reach Underwrite API at {endpoint}")
+        print(f"  {GRAY}{exc}{RESET}")
+        print(f"::error title=Underwrite API Error::Failed to reach Underwrite API: {exc}")
+        return 1
+    except httpx.HTTPStatusError as exc:
+        print(f"{BOLD}{RED}error:{RESET} API returned status {exc.response.status_code}")
+        print(f"  Response: {exc.response.text}")
+        return 1
+
+    return process_payload(api_url, payload)
 
 
 def main() -> int:

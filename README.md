@@ -62,7 +62,15 @@ flowchart TD
 ```
 
 **Phase 1: Deterministic Enforcement (Safety)**: We strictly evaluate the column-level fine-grained lineage. Zero heuristics. Zero AI hallucinations. Even an APPROVED payload cannot deploy unless its source is an authoritative live DataHub evaluation.
-**Phase 2: Generative Remediation (Velocity)**: Once safely blocked, an AI advisor drafts actionable markdown advice. The DataHub Agent Context Kit (ACK) is mandatory for this AI remediation to query context, but ACK is never mandatory for the deterministic authorization decision in Phase 1.
+**Phase 2: Generative Remediation (Velocity)**: **AI remediation is only enabled when DataHub Agent Context Kit is available. Underwrite never substitutes an ungrounded generic LLM when ACK initialization fails.** 
+
+```python
+# Our strict initialization path
+tools = build_langchain_tools(
+    client,
+    include_mutations=False,
+)
+```
 
 ---
 
@@ -80,6 +88,8 @@ flowchart TD
 ---
 
 ## 🚀 Quick Start
+
+**Supported Environments**: Recommended: Python 3.13. Verified with Python 3.13. (Python 3.14 is currently not supported due to dependency compatibility)
 
 1. Clone the repository.
 2. Create a virtual environment:
