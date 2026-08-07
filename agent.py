@@ -27,7 +27,6 @@ from metadata.urns import (
 from exceptions import PolicyConfigurationError
 
 logger = logging.getLogger("underwrite.agent")
-MAX_LINEAGE_DEPTH = 6
 
 TAG_POST_OUTCOME = make_tag_urn("post_outcome")
 TAG_IS_TARGET = make_tag_urn("is_target")
@@ -47,7 +46,7 @@ TARGET_LEAKAGE_POLICY = Policy(
     policy_id="ML-LEAK-001",
     name="Target Leakage Prevention Policy",
     target_tags=LEAK_TAGS,
-    description="Prevents models from training on features derived from post-outcome datasets.",
+    description="Prevents models from training on features whose field or dataset provenance traces to a post-outcome entity.",
 )
 
 
@@ -413,8 +412,9 @@ def normalize_to_internal_graph(acquired_data: dict) -> InternalGraph:
 class PolicyEvaluator:
     """Evaluates governance policies over in-memory InternalGraph."""
 
-    def __init__(self, policy: Policy = TARGET_LEAKAGE_POLICY):
+    def __init__(self, policy: Policy = TARGET_LEAKAGE_POLICY, max_depth: int = 6):
         self.policy = policy
+        self.max_depth = max_depth
 
     def evaluate(self, graph: InternalGraph, root_urn: str) -> VerdictInternal:
         logger.info("Starting DFS walk from root model: %s", root_urn)
@@ -504,8 +504,7 @@ class PolicyEvaluator:
         if curr_urn in visited:
             return
 
-        # Uses the module-level MAX_LINEAGE_DEPTH by default for evaluation safety limits
-        if depth > MAX_LINEAGE_DEPTH:
+        if depth > self.max_depth:
             if curr_urn not in unresolved_nodes:
                 unresolved_nodes.append(curr_urn)
             return
@@ -612,7 +611,7 @@ class Agent:
         policies_evaluated = 0
         for policy in self.policies or [TARGET_LEAKAGE_POLICY]:
             policies_evaluated += 1
-            verdict = PolicyEvaluator(policy=policy).evaluate(internal_graph, model_urn)
+            verdict = PolicyEvaluator(policy=policy, max_depth=self.settings.max_lineage_depth).evaluate(internal_graph, model_urn)
             if verdict.verdict == Verdict.BLOCKED:
                 new_reason = verdict.reason_code
                 if (

@@ -103,13 +103,13 @@ def process_verdict_writeback_event(
             ]
 
             evidence_paths = verdict_data.get("evidence_paths", [])
-            target_ds = "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)"
+            target_ds = None
             if evidence_paths:
                 ep0 = evidence_paths[0]
                 if isinstance(ep0, dict):
-                    target_ds = ep0.get("tainted_urn") or target_ds
+                    target_ds = ep0.get("tainted_urn")
                 elif hasattr(ep0, "tainted_urn"):
-                    target_ds = ep0.tainted_urn or target_ds
+                    target_ds = ep0.tainted_urn
 
             if isinstance(target_ds, str) and target_ds.startswith("urn:li:schemaField:("):
                 sub = target_ds[len("urn:li:schemaField:(") :]
@@ -119,13 +119,17 @@ def process_verdict_writeback_event(
             desc = verdict_data.get(
                 "headline", "Underwrite evaluation blocked model deployment."
             )
-            outcomes.append(
-                attempt(
-                    lambda: wb_client.write_incident(
-                        target_ds, model_urn, reason_code, desc
+            
+            if target_ds:
+                outcomes.append(
+                    attempt(
+                        lambda: wb_client.write_incident(
+                            target_ds, model_urn, reason_code, desc
+                        )
                     )
                 )
-            )
+            else:
+                logger.info("Incident SKIPPED: no evidence entity available")
             outcomes.append(
                 attempt(
                     lambda: wb_client.write_documentation(

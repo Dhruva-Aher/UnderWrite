@@ -7,6 +7,7 @@ from agent import (
     Agent,
     InternalGraph,
     PolicyEvaluator,
+    Verdict,
     load_policies_from_yaml,
     normalize_to_internal_graph,
 )
@@ -25,7 +26,7 @@ def test_agent_evaluate_target_leakage(mock_client: MockMetadataClient):
     agent = Agent(client=mock_client)
     verdict = agent.evaluate_model(MODEL_CHURN)
 
-    assert verdict.verdict == "blocked"
+    assert verdict.verdict == Verdict.BLOCKED
     assert verdict.reason_code == "TARGET_LEAKAGE"
     assert len(verdict.evidence_paths) == 1
     assert verdict.evidence_paths[0].tainted_urn == DATASET_RAW_BILLING
@@ -42,7 +43,7 @@ def test_missing_dataset_properties_fails_closed(mock_client: MockMetadataClient
 
     verdict = Agent(mock_client).evaluate_model(MODEL_CHURN)
 
-    assert verdict.verdict == "blocked"
+    assert verdict.verdict == Verdict.BLOCKED
     assert verdict.reason_code == "INCOMPLETE_LINEAGE"
 
 
@@ -59,7 +60,7 @@ def test_depth_limit_fails_closed():
 
     verdict = PolicyEvaluator().evaluate(graph, root)
 
-    assert verdict.verdict == "blocked"
+    assert verdict.verdict == Verdict.BLOCKED
     assert verdict.reason_code == "INCOMPLETE_LINEAGE"
 
 
@@ -68,7 +69,7 @@ def test_model_without_features_fails_closed(mock_client: MockMetadataClient):
 
     verdict = Agent(mock_client).evaluate_model(MODEL_CHURN)
 
-    assert verdict.verdict == "blocked"
+    assert verdict.verdict == Verdict.BLOCKED
     assert verdict.reason_code == "INCOMPLETE_LINEAGE"
 
 
@@ -94,7 +95,7 @@ def test_agent_evaluate_clean_model(mock_client: MockMetadataClient):
     agent = Agent(client=mock_client)
     verdict = agent.evaluate_model(clean_model_urn)
 
-    assert verdict.verdict == "approved"
+    assert verdict.verdict == Verdict.APPROVED
     assert verdict.reason_code == "CLEAN"
     assert len(verdict.evidence_paths) == 0
 
@@ -116,7 +117,7 @@ def test_agent_incomplete_lineage(mock_client: MockMetadataClient):
     agent = Agent(client=mock_client)
     verdict = agent.evaluate_model(inc_model_urn)
 
-    assert verdict.verdict == "blocked"
+    assert verdict.verdict == Verdict.BLOCKED
     assert verdict.reason_code == "INCOMPLETE_LINEAGE"
 
 
@@ -149,7 +150,7 @@ def test_agent_evaluates_all_enabled_policies(mock_client, tmp_path):
         client=mock_client, settings=Settings(policy_path=str(policy_file))
     ).evaluate_model(MODEL_CHURN)
 
-    assert verdict.verdict == "blocked"
+    assert verdict.verdict == Verdict.BLOCKED
     assert verdict.reason_code == "POLICY_VIOLATION:SECOND"
     assert verdict.evidence_paths[0].policy_id == "SECOND"
 
@@ -158,11 +159,11 @@ def test_agent_evaluates_all_enabled_policies(mock_client, tmp_path):
     "content",
     ["[]\n", "policies:\n  - id: DUP\n  - id: DUP\n"],
 )
-def test_invalid_policy_configuration_falls_back_to_default(content, tmp_path):
-    """Malformed or duplicate policy configuration cannot disable enforcement."""
+def test_invalid_policy_configuration_raises_error(content, tmp_path):
+    """Malformed or duplicate policy configuration fails closed by raising PolicyConfigurationError."""
+    from exceptions import PolicyConfigurationError
     policy_file = tmp_path / "policies.yaml"
     policy_file.write_text(content)
 
-    policies = load_policies_from_yaml(str(policy_file))
-
-    assert [policy.policy_id for policy in policies] == ["ML-LEAK-001"]
+    with pytest.raises(PolicyConfigurationError):
+        load_policies_from_yaml(str(policy_file))

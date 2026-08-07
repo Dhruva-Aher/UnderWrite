@@ -49,10 +49,14 @@ def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) ->
             response = client.post(endpoint, json={"model_urn": model_urn})
         response.raise_for_status()
         payload = response.json()
-    except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as exc:
+    except (httpx.RequestError, ValueError) as exc:
         print(f"{BOLD}{RED}error:{RESET} Failed to reach Underwrite API at {endpoint}")
         print(f"  {GRAY}{exc}{RESET}")
         print(f"::error title=Underwrite API Error::Failed to reach Underwrite API: {exc}")
+        return 1
+    except httpx.HTTPStatusError as exc:
+        print(f"{BOLD}{RED}error:{RESET} API returned status {exc.response.status_code}")
+        print(f"  Response: {exc.response.text}")
         return 1
 
     # 2. Extract fields
@@ -118,13 +122,10 @@ def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) ->
         try:
             rem_endpoint = f"{api_url.rstrip('/')}/remediation/{decision_id}"
             with httpx.Client(timeout=timeout_seconds) as client:
-                rem_resp = client.post(rem_endpoint, json={
-                    "model_urn": model_urn,
-                    "evidence_paths": evidence_paths,
-                    "policy_id": evidence_paths[0].get("policy_id", reason_code)
-                })
+                rem_resp = client.post(rem_endpoint)
             rem_resp.raise_for_status()
             rem_payload = rem_resp.json()
+            markdown = rem_payload.get("markdown", "")
             print(f"{BOLD}Remediation Advisor:{RESET}")
             for line in markdown.splitlines():
                 print(f"  {line}")

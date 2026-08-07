@@ -213,7 +213,16 @@ class MockMetadataClient(MetadataClient):
         return cls(seeded_aspects=data)
 
     def get_aspect(self, entity_urn: str, aspect_type: Any) -> Any | None:
-        aspect_dict = self.aspects.get(entity_urn, {}).get(aspect_type.__name__)
+        entity_data = self.aspects.get(entity_urn, {})
+        # Check if keyed by type (from unit tests)
+        if aspect_type in entity_data:
+            aspect = entity_data[aspect_type]
+            if isinstance(aspect, dict):
+                return aspect_type.from_obj(aspect)
+            return aspect
+            
+        # Check if keyed by string name (from json fixtures)
+        aspect_dict = entity_data.get(aspect_type.__name__)
         if aspect_dict:
             return aspect_type.from_obj(aspect_dict)
         return None

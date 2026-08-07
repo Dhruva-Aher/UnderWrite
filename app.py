@@ -22,7 +22,25 @@ from constants import ReasonCode, Verdict
 from exceptions import UnderwriteError, PolicyConfigurationError
 from metadata.client import DataHubClient
 from datahub_client import DataHubWriteBackClient, process_verdict_writeback_event, create_datahub_client
-from remediation.advisor import RemediationRequest, generate
+from remediation.advisor import RemediationContext, generate, DISCLAIMER
+from collections import OrderedDict
+
+class DecisionStore:
+    def __init__(self, max_size: int = 256):
+        self._items = OrderedDict()
+        self._max_size = max_size
+
+    def put(self, decision_id: str, context: RemediationContext) -> None:
+        self._items[decision_id] = context
+        self._items.move_to_end(decision_id)
+
+        while len(self._items) > self._max_size:
+            self._items.popitem(last=False)
+
+    def get(self, decision_id: str) -> RemediationContext | None:
+        return self._items.get(decision_id)
+
+decision_store = DecisionStore()
 
 logger = logging.getLogger("underwrite.server")
 
@@ -233,6 +251,7 @@ async def evaluate_model_route(
     request_id = f"UW-REQ-{str(uuid.uuid4())[:8].upper()}"
     start_time = time.time()
     response_payload = None
+    internal_verdict = None
 
     try:
         client = get_metadata_client()
@@ -283,13 +302,37 @@ async def evaluate_model_route(
         background_tasks.add_task(
             process_verdict_writeback_event, response_payload, settings.gms_url
         )
+        
+    if response_payload["evaluation"]["verdict"] == Verdict.BLOCKED:
+        policy_id = "UNKNOWN"
+        if internal_verdict and internal_verdict.evidence_paths:
+            policy_id = getattr(internal_verdict.evidence_paths[0], "policy_id", "UNKNOWN")
+        context = RemediationContext(
+            decision_id=request_id,
+            model_urn=request.model_urn,
+            policy_id=policy_id,
+            reason_code=response_payload["evaluation"]["reason_code"],
+            evidence_paths=tuple(internal_verdict.evidence_paths) if internal_verdict else ()
+        )
+        decision_store.put(request_id, context)
+        
     return response_payload
 
 
 @app.post("/remediation/{decision_id}")
-async def remediation_route(decision_id: str, request: RemediationRequest):
+async def remediation_route(decision_id: str):
     """Generate an AI remediation plan for a blocked deployment using DataHub context."""
-    return {"markdown": generate(request)}
+    context = decision_store.get(decision_id)
+    if not context:
+        raise HTTPException(status_code=404, detail="Decision not found or evidence expired")
+    
+    remediation = generate(context)
+    
+    markdown = f"{DISCLAIMER}\n\n**{remediation.summary}**\n\n"
+    for action in remediation.suggested_actions:
+        markdown += f"{action}\n\n"
+        
+    return {"markdown": markdown.strip(), "source": remediation.source}
 
 
 @app.post("/override")

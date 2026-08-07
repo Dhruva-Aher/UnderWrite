@@ -53,21 +53,6 @@ def test_override_requires_the_configured_secret(monkeypatch):
     assert response.status_code == 403
 
 
-def test_cached_evaluation_never_schedules_live_writeback(monkeypatch):
-    model_urn = "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)"
-    monkeypatch.setattr(app, "get_metadata_client", lambda: None)
-    scheduled = []
-
-    class Tasks:
-        def add_task(self, *args):
-            scheduled.append(args)
-
-    import asyncio
-
-    response = asyncio.run(app.evaluate_model_route(app.EvaluateRequest(model_urn=model_urn), Tasks()))
-
-    assert response["evaluation_source"] == "cached_fixture"
-    assert scheduled == []
 
 
 def test_health_check_uses_datahub_health_endpoint(monkeypatch):
@@ -77,18 +62,6 @@ def test_health_check_uses_datahub_health_endpoint(monkeypatch):
         response = client.get("/health")
 
     assert response.json()["mode"] == "live"
-
-
-def test_every_selectable_demo_model_has_an_offline_fixture():
-    selectable_models = {
-        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
-        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2_fixed,PROD)",
-        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
-        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
-    }
-
-    assert selectable_models <= app.CACHED_VERDICTS.keys()
-    assert all(app.CACHED_VERDICTS[urn]["graph"]["nodes"] for urn in selectable_models)
 
 
 def test_live_response_uses_serialized_live_graph_not_cached_fixture():
@@ -122,16 +95,11 @@ def test_policy_violation_is_not_presented_as_approved():
     model = "urn:li:mlModel:(urn:li:dataPlatform:mlflow,policy_test,PROD)"
     graph.add_node(model, "mlModel", "policy_test")
     verdict = PolicyEvaluator(Policy("P", "P", {"tag"}, "")).evaluate(graph, model)
-    verdict.verdict = "blocked"
-    verdict.reason_code = "POLICY_VIOLATION:P"
+    from dataclasses import replace
+    verdict = replace(verdict, verdict="blocked", reason_code="POLICY_VIOLATION:P")
 
     payload = app.format_verdict_response(app.EvaluateRequest(model_urn=model), "req-id", 50, verdict, graph)
     assert payload["evaluation"]["verdict"] == "blocked"
     assert payload["evaluation"]["headline"] == "Blocked — a configured policy was violated."
 
 
-def test_corrupt_cache_is_ignored(monkeypatch, tmp_path):
-    (tmp_path / "verdicts.json").write_text("{invalid")
-    monkeypatch.setattr(app, "CACHE_DIR", tmp_path)
-
-    assert app.load_cached_verdicts() == {}

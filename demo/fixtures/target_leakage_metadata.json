@@ -1,20 +1,29 @@
 {
   "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)": {
     "MLModelPropertiesClass": {
-      "description": "Churn Model"
-    },
-    "UpstreamLineageClass": {
-      "upstreams": [
-        {
-          "dataset": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD)",
-          "type": "TRANSFORMED"
-        }
+      "description": "Churn Model",
+      "mlFeatures": [
+        "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)"
+      ]
+    }
+  },
+  "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)": {
+    "MLFeaturePropertiesClass": {
+      "sources": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD)"
       ]
     }
   },
   "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD)": {
     "DatasetPropertiesClass": {
       "description": "Raw Customers"
+    },
+    "GlobalTagsClass": {
+      "tags": [
+        {
+          "tag": "urn:li:tag:is_target"
+        }
+      ]
     },
     "SchemaMetadataClass": {
       "schemaName": "customers",
@@ -28,27 +37,33 @@
         {
           "fieldPath": "id",
           "type": {
-            "type": "StringTypeClass"
+            "type": {
+              "com.linkedin.pegasus2avro.schema.StringType": {}
+            }
           },
           "nativeDataType": "VARCHAR"
         },
         {
           "fieldPath": "customer_name",
           "type": {
-            "type": "StringTypeClass"
+            "type": {
+              "com.linkedin.pegasus2avro.schema.StringType": {}
+            }
           },
           "nativeDataType": "VARCHAR"
         },
         {
           "fieldPath": "customer_status",
           "type": {
-            "type": "StringTypeClass"
+            "type": {
+              "com.linkedin.pegasus2avro.schema.StringType": {}
+            }
           },
           "nativeDataType": "VARCHAR",
           "globalTags": {
             "tags": [
               {
-                "tag": "urn:li:tag:IS_TARGET"
+                "tag": "urn:li:tag:is_target"
               }
             ]
           }

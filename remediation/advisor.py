@@ -4,8 +4,7 @@ from pydantic import BaseModel
 from llm_provider import get_llm
 from config import settings
 from datahub_client import create_datahub_client
-from langchain.agents import initialize_agent, AgentType
-
+from langgraph.prebuilt import create_react_agent
 try:
     from datahub_agent_context.langchain_tools import build_langchain_tools
 except ImportError:
@@ -21,53 +20,82 @@ DISCLAIMER = (
     "================================================\n"
 )
 
-class RemediationRequest(BaseModel):
-    model_urn: str
-    evidence_paths: list[dict]
-    policy_id: str
+from dataclasses import dataclass
+from typing import Literal
+from agent import EvidencePath
+from constants import ReasonCode
 
-def generate(request: RemediationRequest) -> str:
-    """
-    Format evidence to markdown -> send to LLM (with DataHub ACK tools) -> return markdown.
-    """
+@dataclass(frozen=True)
+class RemediationContext:
+    decision_id: str
+    model_urn: str
+    policy_id: str
+    reason_code: ReasonCode
+    evidence_paths: tuple[EvidencePath, ...]
+
+@dataclass(frozen=True)
+class Remediation:
+    summary: str
+    suggested_actions: tuple[str, ...]
+    source: Literal["ack_llm", "deterministic"]
+
+def deterministic_fallback(context: RemediationContext) -> Remediation:
     evidence_md = ""
-    for idx, ep in enumerate(request.evidence_paths):
+    for idx, ep in enumerate(context.evidence_paths):
         evidence_md += f"**Evidence {idx + 1}**\n"
-        for k, v in ep.items():
-            evidence_md += f"- {k}: {v}\n"
-        evidence_md += "\n"
+        evidence_md += f"- Path: {' -> '.join(ep.path)}\n"
+        if hasattr(ep, "field_name"):
+            evidence_md += f"- Field: {ep.field_name}\n"
+    
+    return Remediation(
+        summary=f"Deployment for {context.model_urn} blocked by {context.policy_id}.",
+        suggested_actions=("Review the evidence paths provided.", "Remove the upstream dependencies violating the policy.", f"Evidence:\n{evidence_md}"),
+        source="deterministic"
+    )
+
+def generate(context: RemediationContext) -> Remediation:
+    """
+    Format evidence to markdown -> send to LLM (with DataHub ACK tools).
+    """
+    try:
+        client = create_datahub_client(settings)
+        tools = build_langchain_tools(client, include_mutations=False) if build_langchain_tools else None
+        if not tools:
+            raise ValueError("build_langchain_tools returned empty or None")
+    except Exception as e:
+        logger.warning("DataHub ACK unavailable (%s); returning deterministic evidence-only remediation", e)
+        return deterministic_fallback(context)
+        
+    evidence_md = ""
+    for idx, ep in enumerate(context.evidence_paths):
+        evidence_md += f"**Evidence {idx + 1}**\n"
+        evidence_md += f"- Path: {' -> '.join(ep.path)}\n"
+        if hasattr(ep, "field_name"):
+            evidence_md += f"- Field: {ep.field_name}\n"
     
     prompt = f"""You are a Remediation Advisor.
-A deployment for model {request.model_urn} was blocked due to a violation of policy {request.policy_id}.
+A deployment for model {context.model_urn} was blocked due to a violation of policy {context.policy_id}.
 
 Here is the deterministic evidence of the violation:
 {evidence_md}
 
 Investigate the upstream entities involved using your tools and provide actionable advice to the developer on how to fix this issue.
-Format your response in Markdown. Do not include a disclaimer banner, it will be added automatically.
 """
 
     llm = get_llm()
     if not llm:
-        logger.warning("No LLM configured. Returning basic markdown.")
-        return f"{DISCLAIMER}\n\n**Action Required:**\nDeployment for {request.model_urn} blocked by {request.policy_id}.\n\n**Evidence:**\n```\n{evidence_md}\n```\n"
+        logger.warning("No LLM configured. Returning deterministic fallback.")
+        return deterministic_fallback(context)
 
     try:
-        client = create_datahub_client(settings)
-        tools = []
-        if build_langchain_tools:
-            tools = build_langchain_tools(client, include_mutations=False)
-        
-        if tools:
-            agent = initialize_agent(
-                tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=False
-            )
-            content = agent.run(prompt)
-        else:
-            response = llm.invoke(prompt)
-            content = response.content if hasattr(response, "content") else str(response)
-            
-        return f"{DISCLAIMER}\n\n{content}"
+        agent_executor = create_react_agent(llm, tools)
+        result = agent_executor.invoke({"messages": [("user", prompt)]})
+        content = result["messages"][-1].content
+        return Remediation(
+            summary=f"Analysis for {context.model_urn}",
+            suggested_actions=(content,),
+            source="ack_llm"
+        )
     except Exception as e:
         logger.error("LLM generation failed: %s", e)
-        return f"{DISCLAIMER}\n\n**Action Required:**\nDeployment for {request.model_urn} blocked by {request.policy_id}.\n\n**Evidence:**\n```\n{evidence_md}\n```\n"
+        return deterministic_fallback(context)
