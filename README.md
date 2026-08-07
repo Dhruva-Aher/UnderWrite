@@ -1,44 +1,87 @@
 # Underwrite 🛡️
 
-> **Metadata-aware CI/CD powered by DataHub.**
-> Traditional CI tells you whether code compiles. Underwrite tells you whether your pull request silently breaks production.
+> **Metadata-aware CI that blocks breaking pull requests.**
 
-[🎥 Demo (2:40)](#) &nbsp;·&nbsp; [🏆 Devpost](#) &nbsp;·&nbsp; [📖 Documentation](docs/ARCHITECTURE.md) &nbsp;·&nbsp; [📄 Sample Outputs](#sample-outputs)
-
-![Hero GIF](docs/screenshots/01-hero.png)
-*(Imagine a 10-second GIF here: Column removed → Graph changes → Policy violation → Risk score → Remediation → Pass)*
+[🏆 Devpost](#) &nbsp;·&nbsp; [🎥 Demo Screenplay](docs/DEMO_SCREENPLAY.md) &nbsp;·&nbsp; [📖 Architectural Tradeoffs](ARCHITECTURAL_TRADEOFFS.md)
 
 ---
 
-## 🛑 The Problem
+## 🛑 The Problem: Target Leakage is Invisible to CI
 
-Traditional CI only knows if the code compiles. **Underwrite knows if it breaks a downstream dashboard or poisons a production ML model.**
+A machine learning model cannot unsee data. If forbidden data (like a future outcome) leaks into your training set, the model is corrupted. 
 
-| Feature | Traditional CI | Underwrite |
+Today, this happens silently. Data is renamed across transformations. Pipelines merge. The leak becomes invisible. You deploy a corrupted model, and it fails catastrophically.
+
+Traditional CI only knows if the code compiles. **It cannot see your metadata.**
+
+---
+
+## 📸 See it in Action
+
+*(10-second Hero GIF: Alice deletes `customer_status` -> Underwrite blocks PR -> DataHub graph shows blast radius.)*
+
+---
+
+## 💡 Why It Matters: Actionable Metadata
+
+Underwrite uses metadata to stop bad deployments. It does not just analyze metadata passively—it breaks the build if forbidden data reaches a production model. 
+
+| Feature | GitHub Actions | Underwrite |
 | :--- | :---: | :---: |
-| Unit Tests | ✓ | ✓ |
-| Lint & Build | ✓ | ✓ |
-| Metadata Graph | ✗ | **✓** |
-| Lineage Traversal | ✗ | **✓** |
-| Explainability | ✗ | **✓** |
-| Deterministic Governance| ✗ | **✓** |
+| Unit Tests & Linting | ✓ | ✓ |
+| **Reads Metadata Graph** | ✗ | **✓** |
+| **Lineage Traversal (DFS)**| ✗ | **✓** |
+| **Blocks PR on Blast Radius** | ✗ | **✓** |
+| **Writes Incidents back** | ✗ | **✓** |
 
 ---
 
-## ⚙️ How Underwrite Works
+## 🏗️ Architecture: Why Traditional CI Fails
 
-**What happens?** Alice accidentally removes `customer_status` from a dbt model in her Pull Request.
+GitHub Actions only sees the *code* that changed. It does not know that `raw_customers.sql` feeds into a pipeline that eventually trains a risk-prediction ML model. 
 
-Within milliseconds, Underwrite:
-1. ✓ **Computes a semantic SQL delta** (extracts exactly what columns were dropped).
-2. ✓ **Traverses the DataHub lineage graph** (finds 11 dashboards and 2 ML models).
-3. ✓ **Blocks the PR** based on deterministic governance policies.
-4. ✓ **Suggests an AI remediation**.
-5. ✓ **Writes the governance result back into DataHub** as an Incident.
+Underwrite bridges this gap by acting as a strict deployment gate backed by **DataHub**. 
+
+```mermaid
+flowchart TD
+    subgraph Traditional CI (Blind)
+        PR[GitHub PR] --> CodeTest[Unit Tests Pass ✅]
+    end
+
+    subgraph Underwrite (Metadata-Aware)
+        PR --> SP[Semantic SQL Parser]
+        SP --> DH[(DataHub Fine-Grained Lineage API)]
+        DH -- Traverses 5 hops --> Eval[Deterministic Policy Gate]
+        Eval -- Risk Found --> Block[❌ Block Build]
+        
+        Block --> AI[AI Remediation Advisor]
+        AI --> Draft[Markdown Remediation Advice]
+        Block --> Inc[Write Incident to DataHub]
+    end
+
+    CodeTest -.-x Underwrite
+    
+    classDef safe fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:white;
+    classDef danger fill:#e74c3c,stroke:#c0392b,stroke-width:2px,color:white;
+    classDef dh fill:#3498db,stroke:#2980b9,stroke-width:2px,color:white;
+    
+    class CodeTest safe;
+    class Block danger;
+    class DH dh;
+```
+
+**Phase 1: Deterministic Enforcement (Safety)**: We strictly evaluate the column-level fine-grained lineage. Zero heuristics. Zero AI hallucinations.
+**Phase 2: Generative Remediation (Velocity)**: Once safely blocked, a read-only AI advisor formats the immutable deterministic evidence and drafts actionable markdown advice on how to fix the issue.
 
 ---
 
-## 📸 Inside the Product
+## 🎥 The "Golden Path" Demo
+
+*(Embed 2-minute YouTube Demo Video Here)*
+
+---
+
+## 📸 Product Proof
 
 ### 1. The Verification Dashboard
 ![Dashboard](docs/screenshots/02-blocked.png)
@@ -51,57 +94,17 @@ Within milliseconds, Underwrite:
 
 ---
 
-## 🏗️ Architecture
+## 📄 Example Outputs
 
-```mermaid
-flowchart TD
-    PR[GitHub PR] --> SP[Semantic SQL Parser]
-    SP --> DH[DataHub Metadata Graph]
-    DH --> PE[Policy Engine]
-    PE --> RA[Risk Assessment]
-    RA --> AI[AI Remediation]
-    AI --> Out[GitHub + DataHub]
-```
-
----
-
-## 🧠 Why DataHub?
-
-**Why deterministic evaluation instead of an AI Agent?**
-Because you can't push an LLM hallucination to a production DataHub incident. Underwrite uses AI *only* to generate remediation hypotheses. The actual verification is 100% deterministic, mathematically evaluating the AST diff against the live metadata graph. AI generates remediation suggestions. Deterministic policies make the merge decision.
-
-**Why DataHub?**
-DataHub isn't just a catalog; it's the operational brain. Underwrite relies exclusively on DataHub's real-time lineage APIs to compute the Blast Radius of a code change. Without DataHub, predicting that a column drop will break 11 dashboards is not feasible using source code analysis alone.
-
----
-
-## 📄 Sample Outputs
-
-Judges can instantly review the raw artifacts generated by our engine without running the code.
-
-**1. Semantic SQL Delta** ([`examples/semantic_delta.json`](examples/semantic_delta.json))
-```json
-{
-  "removed_columns": ["customer_status"],
-  "added_columns": [],
-  "affected_tables": ["raw.customers"]
-}
-```
-
-**2. GitHub PR Comment** ([`examples/github_comment.md`](examples/github_comment.md))
-```markdown
-❌ **Required Column Removed**
-`customer_status` ↓ 11 dashboards, 2 ML models ↓ **Risk Score 94**
-```
-
-**3. Policy Verdict** ([`examples/policy_verdict.json`](examples/policy_verdict.json))
-**4. Risk Report** ([`examples/risk_report.json`](examples/risk_report.json))
+Judges can review the exact deterministic artifacts generated by the engine:
+1. **[Policy Verdict](examples/policy_verdict.json)**: The mathematical evaluation result.
+2. **[Remediation Advice](examples/remediation_advice.md)**: The AI remediation draft.
 
 ---
 
 ## ⏱️ Performance Benchmarks
 
-Policy evaluation completes in under 100 ms on our demo dataset, meaning it can run blocking checks in CI/CD without slowing down developer velocity.
+Policy evaluation completes in under 100 ms. It does not slow down developer velocity.
 
 | Stage | Latency |
 | :--- | :--- |
@@ -112,19 +115,9 @@ Policy evaluation completes in under 100 ms on our demo dataset, meaning it can 
 
 ---
 
-## 💻 Tech Stack
-
-- **Backend:** Python, `sqlglot` (Semantic parsing)
-- **Frontend:** React, Vite, `reactflow` (Graph rendering)
-- **Metadata:** DataHub (Lineage, Incidents, SDK)
-- **AI:** GPT-4o (Remediation hypothesis)
-- **Infrastructure:** GitHub Actions
-
----
-
 ## 🚀 Quick Start
 
-1. Open a terminal and clone the repository.
+1. Clone the repository.
 2. Create a virtual environment:
    ```bash
    python -m venv .venv
@@ -138,28 +131,20 @@ Policy evaluation completes in under 100 ms on our demo dataset, meaning it can 
    ```bash
    python demo/run_demo.py
    ```
-5. Open the frontend console to see the `reactflow` graph updates and risk score calculation! (Requires Node).
+5. Open the frontend console to see the `reactflow` graph updates and risk score calculation!
 
 ---
 
-## 📁 Repository Structure
+## ❓ FAQ
 
-- `/demo` - E2E orchestrator showcasing Alice's failed PR.
-- `/examples` - Raw JSON and Markdown output artifacts.
-- `/metadata` - DataHub SDK integrations and URN parsing.
-- `/docs` - Deep-dive architecture and design tradeoffs.
-- `/web` - React Flow frontend visualizer.
-- `/scripts` - Benchmark and evaluation tooling.
+**Q: Doesn't GitHub Actions already do this?**
+A: No. GitHub Actions can run tests, but it cannot traverse a metadata graph. If you drop a column, tests might pass locally, but downstream dashboards will break. Underwrite traverses the graph *before* you merge.
 
----
-
-## ⚠️ Limitations & Future Work
-
-- **SQL Parsing:** Currently supports ANSI SQL via `sqlglot`. Nested CTEs and aliases are fully supported, but stored procedures and vendor-specific dialect extensions are future work.
-- **Offline Mode:** The demo defaults to an offline mock graph if a live DataHub GMS instance is unreachable, to ensure judges can always evaluate the engine logic.
+**Q: Why not just use AI to check the PR?**
+A: You cannot push an LLM hallucination to a production incident system. We use a deterministic engine for the authorization decision (safety), and AI only for the remediation suggestion (velocity).
 
 ---
 
 ## 📝 License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+Apache 2.0 License.

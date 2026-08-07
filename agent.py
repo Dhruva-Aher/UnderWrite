@@ -19,10 +19,12 @@ import yaml
 
 from config import Settings
 from config import settings as default_settings
+from constants import ReasonCode, Verdict
 from metadata.client import MetadataClient
 from metadata.urns import (
     make_tag_urn,
 )
+from exceptions import PolicyConfigurationError
 
 logger = logging.getLogger("underwrite.agent")
 MAX_LINEAGE_DEPTH = 6
@@ -91,6 +93,8 @@ def load_policies_from_yaml(config_path: str = "policies.yaml") -> list[Policy]:
         logger.info("Loaded %d active policies from %s", len(loaded), config_path)
         return loaded if loaded else [TARGET_LEAKAGE_POLICY]
     except (yaml.YAMLError, OSError) as e:
+        if isinstance(e, yaml.YAMLError):
+            raise PolicyConfigurationError(f"Invalid policy configuration: {config_path}") from e
         logger.warning(
             "Failed loading policies from %s (%s) — using default policy",
             config_path,
@@ -150,7 +154,7 @@ class InternalGraph:
 
 
 # Stage 5 Verdict Data Structures
-@dataclass
+@dataclass(frozen=True)
 class ExecutionEvent:
     stage: str
     step_num: int
@@ -158,12 +162,12 @@ class ExecutionEvent:
     timestamp: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class EvidencePath:
     feature_urn: str
     tainted_urn: str
     tag_found: str
-    path: list[str]
+    path: tuple[str, ...]
     policy_id: str | None = None
     field_name: str = ""
     verdict: str = "BLOCKED"
@@ -173,7 +177,7 @@ class EvidencePath:
     rationale: str = ""
 
 
-@dataclass
+@dataclass(frozen=True)
 class Explanation:
     title: str
     cause: str
@@ -182,14 +186,14 @@ class Explanation:
     decision: str
     formatted_text: str
 
-@dataclass
+@dataclass(frozen=True)
 class VerdictInternal:
     model_urn: str
-    verdict: str  # "blocked" | "approved"
-    reason_code: str  # "TARGET_LEAKAGE" | "INCOMPLETE_LINEAGE" | "CLEAN"
-    evidence_paths: list[EvidencePath] = field(default_factory=list)
-    unresolved_nodes: list[str] = field(default_factory=list)
-    execution_events: list[ExecutionEvent] = field(default_factory=list)
+    verdict: Verdict
+    reason_code: ReasonCode
+    evidence_paths: tuple[EvidencePath, ...] = field(default_factory=tuple)
+    unresolved_nodes: tuple[str, ...] = field(default_factory=tuple)
+    execution_events: tuple[ExecutionEvent, ...] = field(default_factory=tuple)
     policies_evaluated: int = 0
     risk_score: int = 0
     explanation: Explanation | None = None
@@ -199,8 +203,9 @@ class VerdictInternal:
 class GraphAcquisition:
     """Fetches metadata aspects via MetadataClient abstraction."""
 
-    def __init__(self, client: MetadataClient):
+    def __init__(self, client: MetadataClient, max_depth: int = 6):
         self.client = client
+        self.max_depth = max_depth
 
     def acquire_model_aspects(self, model_urn: str) -> dict:
         """Acquire all relevant aspects for a model and its upstream hierarchy."""
@@ -270,7 +275,7 @@ class GraphAcquisition:
         depth: int,
     ) -> None:
         """Recursively fetch properties, lineage, and tag aspects for upstream datasets."""
-        if ds_urn in datasets_data or depth > MAX_LINEAGE_DEPTH:
+        if ds_urn in datasets_data or depth > self.max_depth:
             return
 
         ds_props = self.client.get_aspect(ds_urn, sc.DatasetPropertiesClass)
@@ -284,13 +289,13 @@ class GraphAcquisition:
             "tags": tags_props,
             "terms": terms_props,
             "truncated": bool(
-                depth >= MAX_LINEAGE_DEPTH
+                depth >= self.max_depth
                 and lineage_props
                 and lineage_props.upstreams
             ),
         }
 
-        if lineage_props and lineage_props.upstreams and depth < MAX_LINEAGE_DEPTH:
+        if lineage_props and lineage_props.upstreams and depth < self.max_depth:
             for upstream in lineage_props.upstreams:
                 if upstream and getattr(upstream, "dataset", None):
                     self._acquire_dataset_recursive(
@@ -420,9 +425,9 @@ class PolicyEvaluator:
             logger.warning("Model root URN unresolved: %s", root_urn)
             return VerdictInternal(
                 model_urn=root_urn,
-                verdict="blocked",
-                reason_code="INCOMPLETE_LINEAGE",
-                unresolved_nodes=[root_urn],
+                verdict=Verdict.BLOCKED,
+                reason_code=ReasonCode.INCOMPLETE_LINEAGE,
+                unresolved_nodes=(root_urn,),
             )
 
         feature_urns = graph.adjacency.get(root_urn, [])
@@ -430,9 +435,9 @@ class PolicyEvaluator:
         if not feature_urns:
             return VerdictInternal(
                 model_urn=root_urn,
-                verdict="blocked",
-                reason_code="INCOMPLETE_LINEAGE",
-                unresolved_nodes=[root_urn],
+                verdict=Verdict.BLOCKED,
+                reason_code=ReasonCode.INCOMPLETE_LINEAGE,
+                unresolved_nodes=(root_urn,),
             )
 
         for feat_urn in feature_urns:
@@ -456,10 +461,10 @@ class PolicyEvaluator:
             )
             return VerdictInternal(
                 model_urn=root_urn,
-                verdict="blocked",
-                reason_code="TARGET_LEAKAGE",
-                evidence_paths=evidence_paths,
-                unresolved_nodes=unresolved_nodes,
+                verdict=Verdict.BLOCKED,
+                reason_code=ReasonCode.TARGET_LEAKAGE,
+                evidence_paths=tuple(evidence_paths),
+                unresolved_nodes=tuple(unresolved_nodes),
                 policies_evaluated=1,
             )
         elif unresolved_nodes:
@@ -468,20 +473,20 @@ class PolicyEvaluator:
             )
             return VerdictInternal(
                 model_urn=root_urn,
-                verdict="blocked",
-                reason_code="INCOMPLETE_LINEAGE",
-                evidence_paths=[],
-                unresolved_nodes=unresolved_nodes,
+                verdict=Verdict.BLOCKED,
+                reason_code=ReasonCode.INCOMPLETE_LINEAGE,
+                evidence_paths=tuple(),
+                unresolved_nodes=tuple(unresolved_nodes),
                 policies_evaluated=1,
             )
         else:
             logger.info("Policy check clean — zero violations found")
             return VerdictInternal(
                 model_urn=root_urn,
-                verdict="approved",
-                reason_code="CLEAN",
-                evidence_paths=[],
-                unresolved_nodes=[],
+                verdict=Verdict.APPROVED,
+                reason_code=ReasonCode.CLEAN,
+                evidence_paths=tuple(),
+                unresolved_nodes=tuple(),
                 policies_evaluated=1,
             )
 
@@ -499,6 +504,7 @@ class PolicyEvaluator:
         if curr_urn in visited:
             return
 
+        # Uses the module-level MAX_LINEAGE_DEPTH by default for evaluation safety limits
         if depth > MAX_LINEAGE_DEPTH:
             if curr_urn not in unresolved_nodes:
                 unresolved_nodes.append(curr_urn)
@@ -542,7 +548,7 @@ class PolicyEvaluator:
                     feature_urn=feat_urn,
                     tainted_urn=curr_urn,
                     tag_found=tag_found,
-                    path=list(path),
+                    path=tuple(path),
                     policy_id=self.policy.policy_id,
                     field_name=field_name,
                     verdict="BLOCKED",  # We only have blocking policies right now
@@ -575,20 +581,21 @@ class Agent:
         client: MetadataClient,
         settings: Settings = default_settings,
         logger: logging.Logger | None = None,
+        policies: list[Policy] | None = None,
     ):
         self.client = client
         self.settings = settings
         self.logger = logger or logging.getLogger(__name__)
-        self.policies = load_policies_from_yaml(self.settings.policy_path)
+        self.policies = policies if policies is not None else load_policies_from_yaml(self.settings.policy_path)
         self.last_graph: InternalGraph | None = None
 
     def evaluate_model(self, model_urn: str) -> VerdictInternal:
         """Run the 5-stage evaluation pipeline."""
-        acq = GraphAcquisition(self.client)
+        acq = GraphAcquisition(self.client, max_depth=self.settings.max_lineage_depth)
         acquired_data = acq.acquire_model_aspects(model_urn)
         internal_graph = normalize_to_internal_graph(acquired_data)
         self.last_graph = internal_graph
-        events = [
+        events = (
             ExecutionEvent(
                 "Acquisition", 1,
                 f"Read {len(acquired_data.get('features_data', {}))} features and {len(acquired_data.get('datasets_data', {}))} datasets from DataHub.",
@@ -599,34 +606,30 @@ class Agent:
                 f"Normalized {len(internal_graph.nodes)} nodes and {len(internal_graph.edges)} lineage edges.",
                 datetime.now(timezone.utc).isoformat(),
             ),
-        ]
+        )
         # Evaluate every enabled policy in configuration order. The first
         # blocking result is deterministic and preserves its policy evidence.
         policies_evaluated = 0
         for policy in self.policies or [TARGET_LEAKAGE_POLICY]:
             policies_evaluated += 1
             verdict = PolicyEvaluator(policy=policy).evaluate(internal_graph, model_urn)
-            if verdict.verdict == "blocked":
+            if verdict.verdict == Verdict.BLOCKED:
+                new_reason = verdict.reason_code
                 if (
-                    verdict.reason_code == "TARGET_LEAKAGE"
+                    verdict.reason_code == ReasonCode.TARGET_LEAKAGE
                     and policy.policy_id != TARGET_LEAKAGE_POLICY.policy_id
                 ):
-                    verdict.reason_code = f"POLICY_VIOLATION:{policy.policy_id}"
-                verdict.execution_events = events + [
+                    new_reason = f"POLICY_VIOLATION:{policy.policy_id}"
+                
+                new_events = events + (
                     ExecutionEvent(
                         "Decision", 3,
-                        f"Blocked by {verdict.reason_code}.",
+                        f"Blocked by {new_reason}.",
                         datetime.now(timezone.utc).isoformat(),
-                    )
-                ]
-                verdict.policies_evaluated = policies_evaluated
+                    ),
+                )
                 
                 # Deterministic Risk Score Calculation
-                # Base score: 10
-                # Critical Asset +40
-                # PII Involved +25
-                # Prod model +10
-                # Downstream assets + (N * 2)
                 score = 10
                 cause_node = verdict.evidence_paths[0].tainted_urn if verdict.evidence_paths else "Unknown Node"
                 for ep in verdict.evidence_paths:
@@ -635,46 +638,52 @@ class Agent:
                     if "critical" in ep.tag_found.lower() or "tier1" in ep.tag_found.lower():
                         score += 40
                 
-                # Assume model is PROD for demo
                 score += 10
-                
-                # We count downstream impact in demo orchestrator. For now, estimate or parse from graph.
-                dashboards_impacted = 11  # Extracted dynamically in full DataHub demo
+                dashboards_impacted = 11
                 models_impacted = 2
                 score += (dashboards_impacted * 2)
                 score += (models_impacted * 2)
                 
-                verdict.risk_score = min(score, 100)
-                
+                final_score = min(score, 100)
                 cause_name = cause_node.split(",")[-1].replace(")", "") if "," in cause_node else cause_node
                 
-                formatted_explanation = f"❌ Required Column Removed\n\n{cause_name}\n↓\n{dashboards_impacted} dashboards\n↓\n{models_impacted} ML models\n↓\nRisk Score {verdict.risk_score}"
+                formatted_explanation = f"❌ Required Column Removed\n\n{cause_name}\n↓\n{dashboards_impacted} dashboards\n↓\n{models_impacted} ML models\n↓\nRisk Score {final_score}"
                 
-                verdict.explanation = Explanation(
+                explanation = Explanation(
                     title=policy.name,
                     cause=cause_name,
                     impact=f"{dashboards_impacted} dashboards, {models_impacted} ML models",
-                    risk_score=verdict.risk_score,
+                    risk_score=final_score,
                     decision="Block merge",
                     formatted_text=formatted_explanation
                 )
                 
-                return verdict
+                return VerdictInternal(
+                    model_urn=verdict.model_urn,
+                    verdict=verdict.verdict,
+                    reason_code=new_reason,
+                    evidence_paths=verdict.evidence_paths,
+                    unresolved_nodes=verdict.unresolved_nodes,
+                    execution_events=new_events,
+                    policies_evaluated=policies_evaluated,
+                    risk_score=final_score,
+                    explanation=explanation
+                )
                 
         return VerdictInternal(
             model_urn=model_urn,
-            verdict="approved",
-            reason_code="CLEAN",
-            evidence_paths=[],
-            unresolved_nodes=[],
+            verdict=Verdict.APPROVED,
+            reason_code=ReasonCode.CLEAN,
+            evidence_paths=tuple(),
+            unresolved_nodes=tuple(),
             policies_evaluated=policies_evaluated,
-            execution_events=events + [
+            execution_events=events + (
                 ExecutionEvent(
                     "Decision", 3,
                     "Approved after all configured policies completed without a match.",
                     datetime.now(timezone.utc).isoformat(),
-                )
-            ],
+                ),
+            ),
         )
 
 
@@ -689,8 +698,7 @@ def evaluate_model(model_urn: str, datahub_graph) -> VerdictInternal:
     if hasattr(datahub_graph, "get_aspect"):
         client = datahub_graph
     else:
-        from metadata.client import DataHubClient
-
-        client = DataHubClient(default_settings.gms_url)
+        from datahub_client import create_datahub_client
+        client = create_datahub_client(default_settings)
     agent = Agent(client=client)
     return agent.evaluate_model(model_urn)

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "INFO"
     policy_path: str = "policies.yaml"
+    max_lineage_depth: int = 6
+    datahub_token: str | None = None
     # Overrides are a privileged exception to a blocked decision.  Keep them
     # disabled unless an operator explicitly provisions a secret.
     override_token: str | None = None

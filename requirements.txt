@@ -2,32 +2,32 @@
 # Pinned to specific versions for reproducibility
 
 # Web server
-fastapi>=0.115.12
-uvicorn>=0.34.3
-pydantic-settings>=2.14.2
-PyYAML>=6.0.3
+fastapi
+uvicorn
+pydantic-settings
+PyYAML
 
 # HTTP clients for DataHub health checks and SDK communication
-httpx>=0.28.1
-requests>=2.34.2
+httpx
+requests
 
 # DataHub Python SDK & REST Emitter
-acryl-datahub>=1.6.0.15
+acryl-datahub
 
 # Test runner used by the documented `python test_full_suite.py` command
-pytest>=9.1.1
-playwright>=1.55.0
+pytest
+playwright
 
 # LangChain and Agent Context Kit
 # datahub-agent-context[langchain] pulls in the official LangChain tool bindings
 # (build_langchain_tools) from the DataHub Agent Context Kit.
-# datahub-agent-context[langchain]>=0.0.1
-langchain>=0.2.0
-langchain-core>=0.2.0
-langchain-openai>=0.1.0
-langchain-anthropic>=0.1.0
-langchain-google-genai>=1.0.0
+datahub-agent-context[langchain]
+langchain
+langchain-core
+langchain-openai
+langchain-anthropic
+langchain-google-genai
 
 
 # SQL AST Parsing for deterministic verification
-sqlglot>=23.0.0
+sqlglot

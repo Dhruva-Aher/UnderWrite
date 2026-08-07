@@ -16,14 +16,18 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
-from agent import Agent, InternalGraph, VerdictInternal
+from agent import Agent, InternalGraph, VerdictInternal, load_policies_from_yaml
 from config import settings
-from datahub_client import DataHubWriteBackClient, process_verdict_writeback_event
-from exceptions import UnderwriteError
+from constants import ReasonCode, Verdict
+from exceptions import UnderwriteError, PolicyConfigurationError
 from metadata.client import DataHubClient
-from hypothesis_generator import RemediationRequest, generate_hypothesis
+from datahub_client import DataHubWriteBackClient, process_verdict_writeback_event, create_datahub_client
+from remediation.advisor import RemediationRequest, generate
 
 logger = logging.getLogger("underwrite.server")
+
+# Fail-closed policy configuration at startup
+GLOBAL_POLICIES = load_policies_from_yaml(settings.policy_path)
 
 app = FastAPI(
     title="Underwrite",
@@ -38,33 +42,13 @@ CACHE_DIR = BASE_DIR / "cache"
 def get_metadata_client() -> DataHubClient | None:
     """Instantiate and test DataHubClient connection."""
     try:
-        client = DataHubClient(settings.gms_url)
+        client = create_datahub_client(settings)
         return client if client.is_healthy() else None
     except (UnderwriteError, OSError, Exception) as e:
         logger.warning(
             "DataHub GMS connection test failed (%s) — running in cached mode", e
         )
         return None
-
-
-def load_cached_verdicts() -> dict:
-    """Load cached fallback verdicts."""
-    verdicts_path = CACHE_DIR / "verdicts.json"
-    if not verdicts_path.exists():
-        logger.warning("cache/verdicts.json not found — fallback responses unavailable")
-        return {}
-    try:
-        with open(verdicts_path) as f:
-            data = json.load(f)
-        if not isinstance(data, dict):
-            raise ValueError("cache root must be an object")
-        return data
-    except (OSError, ValueError, json.JSONDecodeError) as e:
-        logger.error("Ignoring invalid cached verdicts: %s", e)
-        return {}
-
-
-CACHED_VERDICTS = load_cached_verdicts()
 
 
 class EvaluateRequest(BaseModel):
@@ -163,18 +147,14 @@ def format_verdict_response(
             {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"},
             {"entity": "MLModel", "urn": request.model_urn, "aspect": "incidents", "operation": "CREATE", "status": "REQUESTED"}
         ]
-    elif verdict_obj.verdict == "approved":
+    elif verdict_obj.verdict == Verdict.APPROVED:
         headline = "Approved — full lineage resolved. No policy flags."
         explanation = "All configured policies completed without a match on the acquired DataHub provenance graph."
-        write_back = [
-            {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"}
-        ]
+        write_back = {"status": "REQUESTED"}
     else:
         headline = "Blocked — a configured policy was violated."
         explanation = "A configured DataHub governance policy matched the acquired provenance graph."
-        write_back = [
-            {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"}
-        ]
+        write_back = {"status": "REQUESTED"}
 
     evidence_paths_serialized = [
         (
@@ -228,9 +208,9 @@ def format_verdict_response(
             "explanation": explanation,
             "latency_ms": latency_ms,
             "policies_evaluated": verdict_obj.policies_evaluated,
-            "denials": sum(1 for ep in verdict_obj.evidence_paths if ep.verdict == "BLOCKED"),
-            "warnings": sum(1 for ep in verdict_obj.evidence_paths if ep.verdict == "WARN"),
-            "allowances": sum(1 for ep in verdict_obj.evidence_paths if ep.verdict == "APPROVED"),
+            "denials": sum(1 for ep in verdict_obj.evidence_paths if getattr(ep, "verdict", None) == "BLOCKED"),
+            "warnings": sum(1 for ep in verdict_obj.evidence_paths if getattr(ep, "verdict", None) == "WARN"),
+            "allowances": sum(1 for ep in verdict_obj.evidence_paths if getattr(ep, "verdict", None) == "APPROVED"),
         },
         "graph": graph_to_ui_payload(graph, verdict_obj),
         "write_back": write_back,
@@ -238,7 +218,7 @@ def format_verdict_response(
         "execution_events": execution_events_serialized,
         "evaluated_at": datetime.now(timezone.utc).isoformat(),
         "evaluation_source": "live_datahub",
-        "remediation_available": verdict_obj.verdict == "blocked" and bool(evidence_paths_serialized),
+        "remediation_available": verdict_obj.verdict == Verdict.BLOCKED and bool(evidence_paths_serialized),
     }
 
 
@@ -256,64 +236,49 @@ async def evaluate_model_route(
 
     try:
         client = get_metadata_client()
-        if client:
-            agent = Agent(client=client, settings=settings)
-            internal_verdict = agent.evaluate_model(request.model_urn)
-            graph = agent.last_graph
-            if graph is None:
-                raise UnderwriteError("Evaluation completed without a graph")
-            latency_ms = int((time.time() - start_time) * 1000)
-            response_payload = format_verdict_response(request, request_id, latency_ms, internal_verdict, graph)
+        if not client:
+            raise UnderwriteError("DataHub client unavailable or unhealthy")
+
+        agent = Agent(client=client, settings=settings, policies=GLOBAL_POLICIES)
+        internal_verdict = agent.evaluate_model(request.model_urn)
+        graph = agent.last_graph
+        if graph is None:
+            raise UnderwriteError("Evaluation completed without a graph")
+        latency_ms = int((time.time() - start_time) * 1000)
+        response_payload = format_verdict_response(request, request_id, latency_ms, internal_verdict, graph)
     except (UnderwriteError, OSError, ValueError) as e:
-        logger.warning(
-            "Live evaluation failed (%s) — returning cached verdict fallback", e
-        )
+        logger.warning("Live evaluation failed (%s) — returning fail-closed response", e)
 
     if not response_payload:
-        cached = CACHED_VERDICTS.get(request.model_urn)
-        if cached:
-            response_payload = dict(cached)
-            response_payload.setdefault("request", {})["model_urn"] = request.model_urn
-            response_payload["request"]["environment"] = request.environment
-            response_payload["request"]["action"] = request.action
-            response_payload["request"]["requested_by"] = request.requested_by
-            response_payload["request"]["request_id"] = request_id
-            response_payload["request"]["gms_endpoint"] = settings.gms_url
-            response_payload["evaluated_at"] = datetime.now(timezone.utc).isoformat()
-            response_payload["evaluation_source"] = "cached_fixture"
-            response_payload["write_back"] = None
-        else:
-            response_payload = {
-                "request": {
-                    "model_urn": request.model_urn,
-                    "environment": request.environment,
-                    "action": request.action,
-                    "requested_by": request.requested_by,
-                    "request_id": request_id,
-                    "gms_endpoint": settings.gms_url,
-                },
-                "evaluation": {
-                    "verdict": "blocked",
-                    "reason_code": "EVALUATION_FAILED",
-                    "headline": "Blocked — evaluation unavailable.",
-                    "explanation": f"No evaluation data available for model: {request.model_urn}",
-                    "latency_ms": int((time.time() - start_time) * 1000),
-                    "policies_evaluated": 0,
-                    "denials": 0,
-                    "warnings": 0,
-                    "allowances": 0,
-                },
-                "graph": None,
-                "write_back": None,
-                "evidence_paths": [],
-                "execution_events": [],
-                "evaluated_at": datetime.now(timezone.utc).isoformat(),
-                "evaluation_source": "unavailable",
-                "remediation_available": False,
-            }
+        response_payload = {
+            "request": {
+                "model_urn": request.model_urn,
+                "environment": request.environment,
+                "action": request.action,
+                "requested_by": request.requested_by,
+                "request_id": request_id,
+                "gms_endpoint": settings.gms_url,
+            },
+            "evaluation": {
+                "verdict": Verdict.BLOCKED,
+                "reason_code": ReasonCode.EVALUATION_UNAVAILABLE,
+                "headline": "Blocked — evaluation unavailable.",
+                "explanation": f"Evaluation could not be completed for model: {request.model_urn}",
+                "latency_ms": int((time.time() - start_time) * 1000),
+                "policies_evaluated": 0,
+                "denials": 0,
+                "warnings": 0,
+                "allowances": 0,
+            },
+            "graph": None,
+            "write_back": None,
+            "evidence_paths": [],
+            "execution_events": [],
+            "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            "evaluation_source": "unavailable",
+            "remediation_available": False,
+        }
 
-    # A cached fixture is presentation data, not evidence from a particular
-    # DataHub request.  Never turn it into a live governance write-back.
     if response_payload["evaluation_source"] == "live_datahub":
         background_tasks.add_task(
             process_verdict_writeback_event, response_payload, settings.gms_url
@@ -324,7 +289,7 @@ async def evaluate_model_route(
 @app.post("/remediation/{decision_id}")
 async def remediation_route(decision_id: str, request: RemediationRequest):
     """Generate an AI remediation plan for a blocked deployment using DataHub context."""
-    return generate_hypothesis(request)
+    return {"markdown": generate(request)}
 
 
 @app.post("/override")

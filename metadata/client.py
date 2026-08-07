@@ -53,8 +53,9 @@ class MetadataClient(Protocol):
 class DataHubClient(MetadataClient):
     """Concrete DataHub SDK client using REST emitter and DataHubGraph."""
 
-    def __init__(self, gms_url: str):
+    def __init__(self, gms_url: str, token: str | None = None):
         self.gms_url = gms_url
+        self.token = token
         self._emitter = None
         self._graph = None
 
@@ -62,14 +63,14 @@ class DataHubClient(MetadataClient):
         if self._emitter is None:
             from datahub.emitter.rest_emitter import DatahubRestEmitter
 
-            self._emitter = DatahubRestEmitter(self.gms_url)
+            self._emitter = DatahubRestEmitter(self.gms_url, token=self.token)
         return self._emitter
 
     def _get_graph(self):
         if self._graph is None:
             from datahub.ingestion.graph.client import DatahubClientConfig, DataHubGraph
 
-            self._graph = DataHubGraph(DatahubClientConfig(server=self.gms_url))
+            self._graph = DataHubGraph(DatahubClientConfig(server=self.gms_url, token=self.token))
         return self._graph
 
     def is_healthy(self) -> bool:
@@ -198,14 +199,24 @@ class DataHubClient(MetadataClient):
 class MockMetadataClient(MetadataClient):
     """In-memory mock metadata client for zero-network unit testing."""
 
-    def __init__(self, seeded_aspects: dict[str, dict[Any, Any]] | None = None):
-        self.aspects: dict[str, dict[Any, Any]] = seeded_aspects or {}
+    def __init__(self, seeded_aspects: dict[str, dict[str, Any]] | None = None):
+        self.aspects: dict[str, dict[str, Any]] = seeded_aspects or {}
         self.emitted_tags: list[dict[str, str]] = []
         self.emitted_incidents: list[dict[str, str]] = []
         self.emitted_docs: list[dict[str, str]] = []
 
+    @classmethod
+    def load_fixture(cls, path: str) -> "MockMetadataClient":
+        import json
+        with open(path) as f:
+            data = json.load(f)
+        return cls(seeded_aspects=data)
+
     def get_aspect(self, entity_urn: str, aspect_type: Any) -> Any | None:
-        return self.aspects.get(entity_urn, {}).get(aspect_type)
+        aspect_dict = self.aspects.get(entity_urn, {}).get(aspect_type.__name__)
+        if aspect_dict:
+            return aspect_type.from_obj(aspect_dict)
+        return None
 
     def is_healthy(self) -> bool:
         return True

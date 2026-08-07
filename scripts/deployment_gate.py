@@ -120,29 +120,16 @@ def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) ->
             with httpx.Client(timeout=timeout_seconds) as client:
                 rem_resp = client.post(rem_endpoint, json={
                     "model_urn": model_urn,
-                    "evidence_path": evidence_paths[0],
+                    "evidence_paths": evidence_paths,
                     "policy_id": evidence_paths[0].get("policy_id", reason_code)
                 })
             rem_resp.raise_for_status()
             rem_payload = rem_resp.json()
-            
-            print(f"{GRAY}{rem_payload.get('disclaimer_banner', '')}{RESET}\n")
-            print(f"{BOLD}Root Cause:{RESET}\n{rem_payload.get('root_cause')}\n")
-            print(f"{BOLD}Evidence Confidence:{RESET}\n{rem_payload.get('evidence_confidence')}\n")
-            
-            files = rem_payload.get('files_to_inspect', [])
-            if files:
-                print(f"{BOLD}Files to inspect:{RESET}")
-                for f in files:
-                    print(f"  - {f}")
-                print()
-                
-            print(f"{BOLD}Suggested Investigation:{RESET}\n{rem_payload.get('suggested_investigation')}\n")
-            
-            print(f"{BOLD}Potential Patch:{RESET}")
-            for line in rem_payload.get("potential_patch", "").splitlines():
+            print(f"{BOLD}Remediation Advisor:{RESET}")
+            for line in markdown.splitlines():
                 print(f"  {line}")
             print()
+
             
         except Exception as e:
             print(f"  {GRAY}Remediation Advisor unavailable: {e}{RESET}\n")

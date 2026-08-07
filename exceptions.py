@@ -23,3 +23,7 @@ class ValidationError(UnderwriteError):
 
 class SchemaError(UnderwriteError):
     """Metadata aspect format or serialization error."""
+
+
+class PolicyConfigurationError(UnderwriteError):
+    """Raised when an explicit policy configuration file is malformed."""

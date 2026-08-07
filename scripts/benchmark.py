@@ -1,7 +1,7 @@
 import time
 import logging
 from metadata.client import MockMetadataClient
-from agent import GraphAcquisition, normalize_to_internal_graph, PolicyEvaluator, TARGET_LEAKAGE_POLICY
+from agent import Agent, load_policies_from_yaml
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -10,52 +10,40 @@ def run_benchmarks():
     print("   UNDERWRITE PERFORMANCE BENCHMARKS")
     print("==============================================\n")
     
-    client = MockMetadataClient()
-    
-    # Populate a dummy graph to test scale
-    client.features_db = {
-        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)": {
-            "globalTags": {"tags": [{"tag": "urn:li:tag:PII"}]}
-        }
-    }
-    client.lineage_db = {
-        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)": [
-            "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)"
-        ]
-    }
+    # Load realistic fixture and policies
+    client = MockMetadataClient.load_fixture("demo/fixtures/target_leakage_metadata.json")
+    policies = load_policies_from_yaml("policies.yaml")
     
     model_urn = "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)"
     
-    # Stage 1: Acquisition
+    # Stage 1: Full Pipeline (Acquisition + Normalization + Evaluation)
     t0 = time.time()
-    acq = GraphAcquisition(client)
-    acquired_data = acq.acquire_model_aspects(model_urn)
+    agent = Agent(client=client, settings=None, policies=policies)
+    verdict = agent.evaluate_model(model_urn)
     t1 = time.time()
-    acq_ms = (t1 - t0) * 1000
+    total_ms = (t1 - t0) * 1000
     
-    # Stage 2: Normalization
+    # Stage 2: Pure Policy Evaluation (in-memory, no network/acquisition)
+    # We can measure this by repeatedly evaluating the cached graph
+    graph = agent.last_graph
     t0 = time.time()
-    graph = normalize_to_internal_graph(acquired_data)
+    # Evaluate 100 times to get a stable average
+    iterations = 100
+    for _ in range(iterations):
+        for policy in policies:
+            _ = policy.evaluate(graph, model_urn)
     t1 = time.time()
-    norm_ms = (t1 - t0) * 1000
-    
-    # Stage 3: Evaluation
-    t0 = time.time()
-    evaluator = PolicyEvaluator(policy=TARGET_LEAKAGE_POLICY)
-    verdict = evaluator.evaluate(graph, model_urn)
-    t1 = time.time()
-    eval_ms = (t1 - t0) * 1000
-    
-    total_ms = acq_ms + norm_ms + eval_ms
+    pure_eval_ms = ((t1 - t0) * 1000) / iterations
     
     print(f"Graph Size: {len(graph.nodes)} nodes, {len(graph.edges)} edges")
-    print(f"Acquisition:   {acq_ms:6.2f} ms")
-    print(f"Normalization: {norm_ms:6.2f} ms")
-    print(f"Evaluation:    {eval_ms:6.2f} ms")
+    print(f"Total Latency (Full Pipeline): {total_ms:6.2f} ms")
+    print(f"Pure Policy Evaluation (avg):  {pure_eval_ms:6.2f} ms")
     print("-" * 30)
-    print(f"Total Latency: {total_ms:6.2f} ms")
     
-    print("\n✅ Sub-100ms budget satisfied.")
+    if total_ms < 100:
+        print("\n✅ Sub-100ms budget satisfied.")
+    else:
+        print("\n⚠️ Sub-100ms budget exceeded.")
 
 if __name__ == "__main__":
     run_benchmarks()

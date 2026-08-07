@@ -1,0 +1,45 @@
+{
+  "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)": {
+    "MLModelPropertiesClass": {
+      "description": "Churn Model"
+    },
+    "UpstreamLineageClass": {
+      "upstreams": [
+        {
+          "dataset": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD)",
+          "type": "TRANSFORMED"
+        }
+      ]
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD)": {
+    "DatasetPropertiesClass": {
+      "description": "Raw Customers"
+    },
+    "SchemaMetadataClass": {
+      "schemaName": "customers",
+      "platform": "urn:li:dataPlatform:snowflake",
+      "version": 1,
+      "hash": "",
+      "platformSchema": {
+        "rawSchema": ""
+      },
+      "fields": [
+        {
+          "fieldPath": "id",
+          "type": {
+            "type": "StringTypeClass"
+          },
+          "nativeDataType": "VARCHAR"
+        },
+        {
+          "fieldPath": "customer_name",
+          "type": {
+            "type": "StringTypeClass"
+          },
+          "nativeDataType": "VARCHAR"
+        }
+      ]
+    }
+  }
+}
