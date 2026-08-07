@@ -62,9 +62,10 @@ def get_metadata_client() -> DataHubClient | None:
     try:
         client = create_datahub_client(settings)
         return client if client.is_healthy() else None
-    except (UnderwriteError, OSError, Exception) as e:
+    except Exception as e:
         logger.warning(
-            "DataHub GMS connection test failed (%s) — running in cached mode", e
+            "DataHub GMS unavailable (%s); authorization will fail closed",
+            e,
         )
         return None
 

@@ -631,7 +631,7 @@ export function UnderwriteConsole() {
         </Section>
         <Section index="05" title="Lineage Graph Visualizer" meta="column-level · depth 4 · react-flow">
           <div className="bg-[#0f172a] p-4 text-[11px] leading-[1.6]">
-            <GraphVisualizer />
+            <GraphVisualizer nodes={payload?.graph?.nodes || []} edges={payload?.graph?.edges || []} />
           </div>
         </Section>
 

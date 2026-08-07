@@ -23,7 +23,7 @@ Underwrite uses metadata to stop bad deployments. It does not just analyze metad
 | Unit Tests & Linting | ✓ | ✓ |
 | **Reads Metadata Graph** | ✗ | **✓** |
 | **Lineage Traversal (DFS)**| ✗ | **✓** |
-| **Blocks PR on Blast Radius** | ✗ | **✓** |
+| **Blocks Unsafe ML Deployment** | ✗ | **✓** |
 | **Writes Incidents back** | ✗ | **✓** |
 
 ---
@@ -37,7 +37,7 @@ Underwrite bridges this gap by acting as a strict deployment gate backed by **Da
 ```mermaid
 flowchart TD
     subgraph Traditional CI (Blind)
-        PR[GitHub PR] --> CodeTest[Unit Tests Pass ✅]
+        PR[Deployment Request] --> CodeTest[Unit Tests Pass ✅]
     end
 
     subgraph Underwrite (Metadata-Aware)
@@ -62,7 +62,7 @@ flowchart TD
 ```
 
 **Phase 1: Deterministic Enforcement (Safety)**: We strictly evaluate the column-level fine-grained lineage. Zero heuristics. Zero AI hallucinations. Even an APPROVED payload cannot deploy unless its source is an authoritative live DataHub evaluation.
-**Phase 2: Generative Remediation (Velocity)**: **AI remediation is only enabled when DataHub Agent Context Kit is available. Underwrite never substitutes an ungrounded generic LLM when ACK initialization fails.** 
+**Phase 2: Generative Remediation (Velocity)**: **AI-generated remediation runs only when DataHub Agent Context Kit and a configured LLM are available. Otherwise Underwrite returns deterministic evidence-only remediation.**
 
 ```python
 # Our strict initialization path
@@ -112,7 +112,7 @@ tools = build_langchain_tools(
 ## ❓ FAQ
 
 **Q: Doesn't GitHub Actions already do this?**
-A: No. GitHub Actions can run tests, but it cannot traverse a metadata graph. If you drop a column, tests might pass locally, but downstream dashboards will break. Underwrite traverses the graph *before* you merge.
+A: No. GitHub Actions can execute Underwrite, but ordinary code-level CI cannot determine whether an ML feature is transitively derived from forbidden upstream data. Underwrite uses DataHub's metadata graph to make that authorization decision.
 
 **Q: Why not just use AI to check the PR?**
 A: You cannot push an LLM hallucination to a production incident system. We use a deterministic engine for the authorization decision (safety), and AI only for the remediation suggestion (velocity).

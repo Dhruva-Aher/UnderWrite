@@ -64,10 +64,19 @@ npm ci
 npm run build
 cd ../../
 
-if ! command -v docker &> /dev/null; then
-    echo "docker not found. Skipping container verification."
+if ! command -v docker >/dev/null 2>&1; then
+    DOCKER_VERIFIED=0
 else
     docker build -t underwrite:verify .
+    DOCKER_VERIFIED=1
 fi
 
-echo "✅ Strict Verification Complete!"
+echo "=============================================="
+if [ "$DOCKER_VERIFIED" -eq 1 ]; then
+    echo "Core verification: PASS"
+    echo "Docker verification: PASS"
+else
+    echo "Core verification: PASS"
+    echo "Docker verification: NOT RUN (docker executable unavailable)"
+fi
+echo "=============================================="

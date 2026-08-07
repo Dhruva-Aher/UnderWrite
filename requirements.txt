@@ -1,5 +1,4 @@
 # Underwrite - Dependencies
-# Pinned to specific versions for reproducibility
 
 # Web server
 fastapi
@@ -27,7 +26,3 @@ langchain-core
 langchain-openai
 langchain-anthropic
 langchain-google-genai
-
-
-# SQL AST Parsing for deterministic verification
-sqlglot
