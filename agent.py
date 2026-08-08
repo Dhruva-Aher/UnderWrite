@@ -364,7 +364,9 @@ def normalize_to_internal_graph(acquired_data: dict) -> InternalGraph:
 
             if lineage_aspect.fineGrainedLineages:
                 for idx, fg in enumerate(lineage_aspect.fineGrainedLineages):
-                    transform_op = getattr(fg, "transformOperation", "UNKNOWN")
+                    # transformOperation is an optional aspect field; present-but-None
+                    # must not reach the operator-facing rationale as the string "None".
+                    transform_op = getattr(fg, "transformOperation", None) or "UNKNOWN"
                     confidence_score = str(getattr(fg, "confidenceScore", "unknown"))
                     aspect_path = f"UpstreamLineage.fineGrainedLineages[{idx}]"
                     
@@ -540,7 +542,8 @@ class PolicyEvaluator:
 
             rationale_text = f"Node {curr_urn} matched target tags {intersecting_tags} via policy {self.policy.policy_id}."
             if "PII" in tag_found or "post_outcome" in tag_found or "is_target" in tag_found:
-                rationale_text = f"Serving feature derives from a column tagged {tag_found} through a non-anonymizing transform ({transform_op}). Policy denies promotion."
+                via = "" if transform_op in (None, "", "UNKNOWN") else f" ({transform_op})"
+                rationale_text = f"Serving feature derives from a column tagged {tag_found} through a non-anonymizing transform{via}. Policy denies promotion."
             
             evidence_paths.append(
                 EvidencePath(

@@ -96,6 +96,26 @@ class OverrideRequest(BaseModel):
         return value
 
 
+def _display_label(node) -> str:
+    """Short label for the graph view; schemaField/mlFeature names are raw URNs."""
+    if not node.name.startswith("urn:"):
+        return node.name
+    # A label is cosmetic and must never be able to fail an evaluation, so any
+    # unparseable URN falls back to the raw value.
+    try:
+        if node.type == "schemaField":
+            from datahub.metadata.urns import DatasetUrn, SchemaFieldUrn
+
+            field = SchemaFieldUrn.from_string(node.name)
+            dataset = DatasetUrn.from_string(str(field.parent)).name
+            return f"{dataset}.{field.field_path}"
+        if node.type == "mlFeature":
+            return node.name.split(",")[-1].replace(")", "").strip() or node.name
+    except Exception:
+        logger.debug("Could not shorten label for %s", node.name)
+    return node.name
+
+
 def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
     """Serialize the graph acquired for this evaluation for the UI."""
     type_map = {
@@ -129,7 +149,7 @@ def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
                 "y": 24 + row * 72,
             },
             "data": {
-                "label": node.name,
+                "label": _display_label(node),
                 "type": type_map.get(node.type, "unknown"),
                 "urn": urn,
                 "description": node.description,
