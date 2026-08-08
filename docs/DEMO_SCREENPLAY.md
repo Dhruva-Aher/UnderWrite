@@ -1,6 +1,6 @@
 # Underwrite: Demo Screenplay (≤ 3 minutes)
 
-**Pin:** record from tag `freeze-grand-prize-ready` (`f09ad46`).  
+**Pin:** record from tag `freeze-grand-prize-ready`.  
 **Hard limit:** judges need not watch past three minutes.  
 **Thesis:** *DataHub already knows how your data is connected. Underwrite makes that knowledge enforceable in CI.*
 

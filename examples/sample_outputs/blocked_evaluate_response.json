@@ -36,5 +36,5 @@
     }
   ],
   "remediation_available": true,
-  "_capture_note": "Live-shaped POST /evaluate blocked payload aligned with seed.py / freeze-grand-prize-ready (f09ad46). Distinct from the offline synthetic fixture. Prefer replaying against live GMS for judging."
+  "_capture_note": "Live-shaped POST /evaluate blocked payload aligned with seed.py / freeze-grand-prize-ready. Distinct from the offline synthetic fixture. Prefer replaying against live GMS for judging."
 }

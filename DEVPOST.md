@@ -4,7 +4,7 @@
 
 **Elevator Pitch**: An ML feature can look safe in code while three transformations upstream it derives from post-outcome data. Underwrite traverses DataHub's column lineage, deterministically fails the deployment, and only then uses AI to explain remediation.
 
-**Verified release pin (judge checkout):** tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/releases/tag/freeze-grand-prize-ready) · commit `f09ad46`. Prefer this tag over drifting `main` so you land on the exact state that passed live GMS verification (blocked `TARGET_LEAKAGE`, writeback SUCCESS, deployment gate exit 1).
+**Verified release pin (judge checkout):** tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/tree/freeze-grand-prize-ready). Prefer this tag over drifting `main` so you land on the exact state that passed live GMS verification (blocked `TARGET_LEAKAGE`, writeback SUCCESS, deployment gate exit 1, console renders the lineage graph).
 
 ## The Problem
 

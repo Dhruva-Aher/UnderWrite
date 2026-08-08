@@ -1,6 +1,6 @@
 # Sample outputs (submission insurance)
 
-Captured shape from the **verified live** path pinned at tag `freeze-grand-prize-ready` (`f09ad46`).
+Captured shape from the **verified live** path pinned at tag `freeze-grand-prize-ready`.
 
 These files let a judge inspect the real blocked-response shape **without** standing up DataHub GMS.
 

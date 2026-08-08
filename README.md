@@ -2,7 +2,11 @@
 
 > **DataHub already knows how your data is connected. Underwrite makes that knowledge enforceable.**
 
-**Verified pin for judges:** tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/releases/tag/freeze-grand-prize-ready) · commit `f09ad46` (prefer the tag over drifting `main`). Sample live-shaped outputs: [`examples/sample_outputs/`](examples/sample_outputs/).
+**Verified pin for judges:** tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/tree/freeze-grand-prize-ready) (prefer the tag over drifting `main`). Sample live-shaped outputs: [`examples/sample_outputs/`](examples/sample_outputs/).
+
+```bash
+git clone --branch freeze-grand-prize-ready https://github.com/Dhruva-Aher/UnderWrite.git
+```
 
 An ML feature can look safe in code. DataHub shows that three transformations upstream it derives from post-outcome data. Underwrite discovers that lineage and fails CI before the corrupted model deploys.
 

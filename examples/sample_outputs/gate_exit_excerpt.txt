@@ -1,6 +1,6 @@
 # Captured from scripts/deployment_gate.py against live Underwrite API
 # Model: urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)
-# Pin: freeze-grand-prize-ready (f09ad46)
+# Pin: freeze-grand-prize-ready
 
 evaluation_source=live_datahub
 verdict=blocked
