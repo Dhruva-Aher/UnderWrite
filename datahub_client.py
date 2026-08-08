@@ -45,7 +45,10 @@ class DataHubWriteBackClient:
         self, gms_url: str | None = None, client: MetadataClient | None = None
     ):
         self.gms_url = gms_url or settings.gms_url
-        self.client = client or create_datahub_client(settings)
+        self.client = client or DataHubClient(
+            gms_url=self.gms_url,
+            token=settings.datahub_token,
+        )
 
     def write_tag(self, model_urn: str, tag_urn: str) -> bool:
         """Apply global tag to model entity idempotently."""

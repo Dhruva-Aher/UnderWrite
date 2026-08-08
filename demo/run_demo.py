@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent import Agent
 from config import settings
-from datahub_client import create_datahub_client, process_verdict_writeback_event
+from datahub_client import WritebackResult, create_datahub_client, process_verdict_writeback_event
 from metadata.client import MockMetadataClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -46,7 +46,7 @@ def _print_verdict(agent: Agent, verdict) -> None:
         print("\nMerge Approved. No policy violations.")
 
 
-def _run_with_client(client, *, mode_label: str, writeback_is_live: bool) -> None:
+def _run_with_client(client, *, mode_label: str, writeback_is_live: bool) -> WritebackResult:
     print(f"Mode: {mode_label}")
     print(f"\nEvaluating deployment for model: {MODEL_URN}")
 
@@ -73,10 +73,11 @@ def _run_with_client(client, *, mode_label: str, writeback_is_live: bool) -> Non
     scope = "live GMS" if writeback_is_live else "mock only (not GMS)"
     print(f"Writeback Status ({scope}): {wb_result.status} - {wb_result.message}")
     print("\nDemo Execution Complete.")
+    return wb_result
 
 
 def run_live() -> bool:
-    """Return True if live DataHub path succeeded."""
+    """Return True only if live GMS evaluation and writeback both succeeded."""
     print("==============================================")
     print("   LIVE DataHub: metadata → gate → writeback")
     print("==============================================\n")
@@ -92,11 +93,14 @@ def run_live() -> bool:
         print(f"Failed to connect to DataHub GMS: {e}")
         return False
 
-    _run_with_client(
+    wb_result = _run_with_client(
         client,
         mode_label="LIVE DataHub (authorization + writeback against GMS)",
         writeback_is_live=True,
     )
+    if wb_result.status != "SUCCESS":
+        print(f"Live path incomplete: writeback status={wb_result.status}")
+        return False
     return True
 
 
@@ -139,8 +143,23 @@ def main() -> None:
         run_offline()
         return
 
+    # Probe GMS once so a writeback failure after a live eval does not fall back
+    # to the offline fixture (which would obscure the live result).
+    gms_available = False
+    try:
+        gms_available = create_datahub_client(settings).is_healthy()
+    except Exception:
+        gms_available = False
+
     if run_live():
         return
+
+    if gms_available:
+        print(
+            "\nLive GMS was reachable but the live path did not fully succeed "
+            "(e.g. writeback incomplete). Not falling back to offline.\n"
+        )
+        sys.exit(1)
 
     print(
         "\nLive DataHub unavailable. Falling back to offline fixture.\n"

@@ -108,6 +108,24 @@ def test_schema_field_tainted_urn_extracts_enclosing_dataset():
     assert dataset_urn_from_maybe_schema_field(DATASET_TEST) == DATASET_TEST
 
 
+def test_writeback_client_uses_explicit_gms_url(monkeypatch):
+    """DataHubWriteBackClient(gms_url=...) must construct against that URL."""
+    created = {}
+
+    class FakeClient:
+        def __init__(self, gms_url, token=None):
+            created["gms_url"] = gms_url
+            created["token"] = token
+
+    monkeypatch.setattr("datahub_client.DataHubClient", FakeClient)
+    monkeypatch.setattr("datahub_client.settings.datahub_token", "tok-xyz")
+
+    DataHubWriteBackClient(gms_url="http://other-gms:8080")
+
+    assert created["gms_url"] == "http://other-gms:8080"
+    assert created["token"] == "tok-xyz"
+
+
 def test_tag_writeback_preserves_existing_associations():
     existing = [sc.TagAssociationClass(tag="urn:li:tag:existing")]
 
