@@ -37,7 +37,7 @@ target_leakage_aspects = {
 with open("demo/fixtures/target_leakage_metadata.json", "w") as f:
     json.dump(target_leakage_aspects, f, indent=2)
 
-# Clean Graph (customer_status column removed)
+# Offline fixture graph with a post_outcome-tagged column (not a column-drop story).
 clean_aspects = {
     model_urn: {
         "MLModelPropertiesClass": sc.MLModelPropertiesClass(description="Churn Model").to_obj(),

@@ -31,6 +31,15 @@ def make_tag_urn(tag_name: str) -> str:
     return _make_tag_urn(tag_name)
 
 
+def dataset_urn_from_maybe_schema_field(urn: str) -> str:
+    """Return the enclosing dataset URN when ``urn`` is a schemaField; else ``urn``."""
+    if not isinstance(urn, str) or not urn.startswith("urn:li:schemaField:("):
+        return urn
+    from datahub.metadata.urns import SchemaFieldUrn
+
+    return str(SchemaFieldUrn.from_string(urn).parent)
+
+
 # Pre-defined Domain Constants
 MODEL_CHURN = make_ml_model_urn("churn_model_v2")
 MODEL_REC = make_ml_model_urn("recommendation_model_v1")

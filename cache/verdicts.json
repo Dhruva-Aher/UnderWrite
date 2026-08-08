@@ -63,7 +63,7 @@
         "verdict": "approved",
         "reason_code": "CLEAN",
         "headline": "Approved \u2014 full lineage resolved. No policy flags.",
-        "explanation": "All features consumed by recommendation_model_v1 trace back to verified source tables through complete column-level lineage. No source columns carry post-outcome, post-prediction, or restricted-access tags. All upstream datasets have active data quality assertions passing. Evidence bar met.",
+        "explanation": "All features consumed by recommendation_model_v1 trace back to verified source tables through complete column-level lineage. No source columns carry post-outcome or is_target tags.",
         "write_back": {
             "tag": "model-approved",
             "incident": false,

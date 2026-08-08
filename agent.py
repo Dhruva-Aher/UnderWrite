@@ -627,36 +627,25 @@ class Agent:
                         datetime.now(timezone.utc).isoformat(),
                     ),
                 )
-                
-                # Deterministic Risk Score Calculation
-                score = 10
-                cause_node = verdict.evidence_paths[0].tainted_urn if verdict.evidence_paths else "Unknown Node"
-                for ep in verdict.evidence_paths:
-                    if "PII" in ep.tag_found.upper() or "IS_TARGET" in ep.tag_found.upper():
-                        score += 25
-                    if "critical" in ep.tag_found.lower() or "tier1" in ep.tag_found.lower():
-                        score += 40
-                
-                score += 10
-                dashboards_impacted = 11
-                models_impacted = 2
-                score += (dashboards_impacted * 2)
-                score += (models_impacted * 2)
-                
-                final_score = min(score, 100)
-                cause_name = cause_node.split(",")[-1].replace(")", "") if "," in cause_node else cause_node
-                
-                formatted_explanation = f"❌ Required Column Removed\n\n{cause_name}\n↓\n{dashboards_impacted} dashboards\n↓\n{models_impacted} ML models\n↓\nRisk Score {final_score}"
-                
+
+                ep0 = verdict.evidence_paths[0] if verdict.evidence_paths else None
+                cause = ep0.tainted_urn if ep0 else "unknown"
+                tag = ep0.tag_found if ep0 else ""
+                path_text = " -> ".join(ep0.path) if ep0 else ""
                 explanation = Explanation(
                     title=policy.name,
-                    cause=cause_name,
-                    impact=f"{dashboards_impacted} dashboards, {models_impacted} ML models",
-                    risk_score=final_score,
-                    decision="Block merge",
-                    formatted_text=formatted_explanation
+                    cause=cause,
+                    impact=f"{len(verdict.evidence_paths)} evidence path(s) from DataHub lineage",
+                    risk_score=0,
+                    decision="Block deployment",
+                    formatted_text=(
+                        f"Blocked by {new_reason}\n"
+                        f"Tag: {tag}\n"
+                        f"Tainted: {cause}\n"
+                        f"Path: {path_text}"
+                    ),
                 )
-                
+
                 return VerdictInternal(
                     model_urn=verdict.model_urn,
                     verdict=verdict.verdict,
@@ -665,8 +654,8 @@ class Agent:
                     unresolved_nodes=verdict.unresolved_nodes,
                     execution_events=new_events,
                     policies_evaluated=policies_evaluated,
-                    risk_score=final_score,
-                    explanation=explanation
+                    risk_score=0,
+                    explanation=explanation,
                 )
                 
         return VerdictInternal(

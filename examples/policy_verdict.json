@@ -9,27 +9,26 @@
   "evaluation": {
     "verdict": "blocked",
     "reason_code": "TARGET_LEAKAGE",
-    "headline": "Blocked — a configured policy was violated.",
+    "headline": "Blocked — trained on data it shouldn’t have seen.",
     "policies_evaluated": 1
   },
   "evaluation_source": "live_datahub",
   "evidence_paths": [
     {
       "policy_id": "ML-LEAK-001",
-      "feature_urn": "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)",
-      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)",
+      "feature_urn": "urn:li:mlFeature:(customer_features,discount_history)",
+      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
       "tag_found": "urn:li:tag:post_outcome",
       "path": [
         "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
-        "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)",
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,model_input,PROD)",
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD)",
-        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD),status_cleaned)",
-        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)"
+        "urn:li:mlFeature:(customer_features,discount_history)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)"
       ],
       "rationale": "Serving feature derives from a column tagged urn:li:tag:post_outcome through a non-anonymizing transform."
     }
   ],
   "remediation_available": true,
-  "_note": "Illustrative sample matching /evaluate response shape from the offline fixture scenario. Live runs require DataHub GMS."
+  "_note": "Illustrative sample aligned with seed.py live scenario. Prefer a live GMS run for judging."
 }

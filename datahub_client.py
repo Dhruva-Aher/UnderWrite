@@ -11,6 +11,7 @@ from config import settings, Settings
 from metadata.client import DataHubClient, MetadataClient
 from metadata.urns import (
     make_tag_urn,
+    dataset_urn_from_maybe_schema_field,
 )
 from pydantic import BaseModel
 
@@ -128,9 +129,7 @@ def process_verdict_writeback_event(
                     target_ds = ep0.tainted_urn
 
             if isinstance(target_ds, str) and target_ds.startswith("urn:li:schemaField:("):
-                sub = target_ds[len("urn:li:schemaField:(") :]
-                if "," in sub:
-                    target_ds = sub.split(",")[0]
+                target_ds = dataset_urn_from_maybe_schema_field(target_ds)
 
             desc = verdict_data.get(
                 "headline", "Underwrite evaluation blocked model deployment."

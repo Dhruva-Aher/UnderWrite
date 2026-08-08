@@ -9,20 +9,23 @@ from remediation.advisor import RemediationContext, generate
 
 client = TestClient(app)
 
-def test_verdict_cannot_be_overridden_via_payload():
+def test_verdict_cannot_be_overridden_via_payload(monkeypatch):
+    """Caller-supplied verdict fields are ignored; fail-closed when GMS is unavailable."""
+    monkeypatch.setattr("app.get_metadata_client", lambda: None)
     payload = {
         "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
         "environment": "PROD",
         "action": "DEPLOY",
-        "verdict": "approved", # Malicious attempt to override
-        "reason_code": "CLEAN"
+        "verdict": "approved",  # Malicious attempt to override
+        "reason_code": "CLEAN",
     }
-    
+
     response = client.post("/evaluate", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert data["evaluation"]["verdict"] == Verdict.BLOCKED
     assert data["evaluation"]["reason_code"] == ReasonCode.EVALUATION_UNAVAILABLE
+    assert data["evaluation_source"] == "unavailable"
 
 def test_remediation_rejects_caller_authored_evidence():
     payload = {

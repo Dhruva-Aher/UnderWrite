@@ -90,7 +90,22 @@ def test_api_response_shaped_writeback_is_not_skipped():
     assert len(mock.emitted_tags) == 1
     assert mock.emitted_tags[0]["target_urn"] == model_urn
     assert len(mock.emitted_incidents) == 1
+    assert mock.emitted_incidents[0]["dataset_urn"] == DATASET_TEST
     assert len(mock.emitted_docs) == 1
+
+
+def test_schema_field_tainted_urn_extracts_enclosing_dataset():
+    """Comma-aware extraction: dataset URNs contain commas and must not be truncated."""
+    from metadata.urns import dataset_urn_from_maybe_schema_field
+
+    field = (
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,"
+        "raw_billing,PROD),retention_discount)"
+    )
+    assert dataset_urn_from_maybe_schema_field(field) == (
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)"
+    )
+    assert dataset_urn_from_maybe_schema_field(DATASET_TEST) == DATASET_TEST
 
 
 def test_tag_writeback_preserves_existing_associations():
