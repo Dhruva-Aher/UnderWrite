@@ -72,7 +72,7 @@ def test_live_response_uses_serialized_live_graph_not_cached_fixture():
 
     payload = app.format_verdict_response(app.EvaluateRequest(model_urn=model), "req-id", 50, verdict, graph)
     assert payload["evaluation_source"] == "live_datahub"
-    assert payload["graph"]["nodes"][0]["label"] == "live_test"
+    assert payload["graph"]["nodes"][0]["data"]["label"] == "live_test"
 
 
 def test_live_graph_uses_data_flow_direction_and_schema_field_type():
@@ -86,8 +86,18 @@ def test_live_graph_uses_data_flow_direction_and_schema_field_type():
 
     payload = app.graph_to_ui_payload(graph, verdict)
 
-    assert payload["edges"] == [{"from": field, "to": model, "isLeak": False, "isBroken": False}]
-    assert next(node for node in payload["nodes"] if node["id"] == field)["type"] == "schema_field"
+    assert payload["edges"] == [
+        {
+            "id": f"e0:{field}->{model}",
+            "source": field,
+            "target": model,
+            "data": {"isLeak": False, "isBroken": False},
+        }
+    ]
+    field_node = next(node for node in payload["nodes"] if node["id"] == field)
+    assert field_node["data"]["type"] == "schema_field"
+    # ReactFlow requires position.{x,y}; a bare x/y unmounts the whole console.
+    assert set(field_node["position"]) == {"x", "y"}
 
 
 def test_policy_violation_is_not_presented_as_approved():

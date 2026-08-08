@@ -124,28 +124,35 @@ def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
         rows[depth] = row + 1
         nodes.append({
             "id": urn,
-            "label": node.name,
-            "type": type_map.get(node.type, "unknown"),
-            "urn": urn,
-            "description": node.description,
-            "tags": sorted(node.tags),
-            "glossaryTerms": sorted(node.glossary_terms),
-            "isLeakNode": urn in evidence_nodes,
-            "x": 24 + (max(depths.values(), default=0) - depth) * 190,
-            "y": 24 + row * 72,
+            "position": {
+                "x": 24 + (max(depths.values(), default=0) - depth) * 190,
+                "y": 24 + row * 72,
+            },
+            "data": {
+                "label": node.name,
+                "type": type_map.get(node.type, "unknown"),
+                "urn": urn,
+                "description": node.description,
+                "tags": sorted(node.tags),
+                "glossaryTerms": sorted(node.glossary_terms),
+                "isLeakNode": urn in evidence_nodes,
+            },
         })
-    return {
-        "nodes": nodes,
-        "edges": [
-            {
-                "from": edge.target_urn,
-                "to": edge.source_urn,
+    # Arrows render in data-flow order (upstream producer -> downstream consumer),
+    # which is the reverse of the traversal edges and matches the depth-based x
+    # layout that places the model at the largest x.
+    edges = []
+    for index, edge in enumerate(graph.edges):
+        edges.append({
+            "id": f"e{index}:{edge.target_urn}->{edge.source_urn}",
+            "source": edge.target_urn,
+            "target": edge.source_urn,
+            "data": {
                 "isLeak": edge.source_urn in evidence_nodes and edge.target_urn in evidence_nodes,
                 "isBroken": edge.target_urn.startswith("unknown:"),
-            }
-            for edge in graph.edges
-        ],
-    }
+            },
+        })
+    return {"nodes": nodes, "edges": edges}
 
 
 def format_verdict_response(
