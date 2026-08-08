@@ -2,14 +2,14 @@
   "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
   "verdict": "approved",
   "reason_code": "CLEAN",
-  "evaluated_at": "2026-07-24T15:45:00Z",
+  "evaluated_at": "2026-08-07T00:00:00Z",
   "evidence_paths": [],
   "unresolved_nodes": [],
+  "evaluation_source_required_for_ci": "live_datahub",
   "datahub_writeback": {
-    "tags_applied": [
-      "urn:li:tag:governance_passed"
-    ],
-    "incidents_created": [],
-    "institutional_memory_updated": true
+    "tags_applied": ["urn:li:tag:model-approved"],
+    "incidents_created": false,
+    "institutional_memory_updated": true,
+    "_note": "CI still requires evaluation_source=live_datahub before exit 0."
   }
 }

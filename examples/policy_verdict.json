@@ -1,22 +1,35 @@
 {
-  "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
-  "verdict": "blocked",
-  "reason_code": "TARGET_LEAKAGE",
-  "policies_evaluated": 3,
-  "risk_score": 94,
+  "request": {
+    "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+    "environment": "PROD",
+    "action": "DEPLOY",
+    "request_id": "UW-REQ-EXAMPLE",
+    "gms_endpoint": "http://localhost:8080"
+  },
+  "evaluation": {
+    "verdict": "blocked",
+    "reason_code": "TARGET_LEAKAGE",
+    "headline": "Blocked — a configured policy was violated.",
+    "policies_evaluated": 1
+  },
+  "evaluation_source": "live_datahub",
   "evidence_paths": [
     {
-      "feature_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)",
-      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_summary,PROD),status)",
-      "tag_found": "urn:li:tag:PII",
-      "verdict": "BLOCKED"
+      "policy_id": "ML-LEAK-001",
+      "feature_urn": "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)",
+      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)",
+      "tag_found": "urn:li:tag:post_outcome",
+      "path": [
+        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+        "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,model_input,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD)",
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD),status_cleaned)",
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)"
+      ],
+      "rationale": "Serving feature derives from a column tagged urn:li:tag:post_outcome through a non-anonymizing transform."
     }
   ],
-  "explanation": {
-    "title": "Target Leakage Prevention Policy",
-    "cause": "Column dropped: customer_status",
-    "impact": "11 dashboards, 2 ML models",
-    "risk_score": 94,
-    "decision": "Block merge"
-  }
+  "remediation_available": true,
+  "_note": "Illustrative sample matching /evaluate response shape from the offline fixture scenario. Live runs require DataHub GMS."
 }

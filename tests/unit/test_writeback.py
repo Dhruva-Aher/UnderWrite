@@ -60,6 +60,39 @@ def test_process_verdict_writeback_event():
     assert len(mock.emitted_docs) == 1
 
 
+def test_api_response_shaped_writeback_is_not_skipped():
+    """Regression: /evaluate schedules nested payloads; writeback must unwrap them."""
+    mock = MockMetadataClient()
+    model_urn = "urn:li:mlModel:(urn:li:dataPlatform:mlflow,api_shape_model,PROD)"
+    api_payload = {
+        "request": {
+            "model_urn": model_urn,
+            "gms_endpoint": "http://localhost:8080",
+        },
+        "evaluation": {
+            "verdict": "blocked",
+            "reason_code": "TARGET_LEAKAGE",
+            "headline": "Blocked — a configured policy was violated.",
+        },
+        "evidence_paths": [
+            {
+                "tainted_urn": (
+                    f"urn:li:schemaField:({DATASET_TEST},customer_status)"
+                )
+            }
+        ],
+        "evaluation_source": "live_datahub",
+    }
+
+    result = process_verdict_writeback_event(api_payload, client=mock)
+
+    assert result.status == "SUCCESS"
+    assert len(mock.emitted_tags) == 1
+    assert mock.emitted_tags[0]["target_urn"] == model_urn
+    assert len(mock.emitted_incidents) == 1
+    assert len(mock.emitted_docs) == 1
+
+
 def test_tag_writeback_preserves_existing_associations():
     existing = [sc.TagAssociationClass(tag="urn:li:tag:existing")]
 

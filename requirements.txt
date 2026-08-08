@@ -26,3 +26,4 @@ langchain-core
 langchain-openai
 langchain-anthropic
 langchain-google-genai
+langgraph

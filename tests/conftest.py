@@ -16,9 +16,13 @@ from metadata.urns import (
 
 def is_gms_available(gms_url: str = settings.gms_url) -> bool:
     """Check if DataHub GMS REST API is reachable."""
+    base = gms_url.rstrip("/")
     try:
-        response = httpx.get(f"{gms_url}/healthcheck", timeout=1.0)
-        return response.status_code == 200
+        for path in ("/healthcheck", "/health"):
+            response = httpx.get(f"{base}{path}", timeout=1.0)
+            if response.status_code == 200:
+                return True
+        return False
     except httpx.HTTPError:
         return False
 

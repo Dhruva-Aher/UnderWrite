@@ -381,7 +381,8 @@ async def health_check():
     client = get_metadata_client()
     if client:
         return {"status": "online", "datahub_gms": "connected", "mode": "live"}
-    return {"status": "online", "datahub_gms": "offline", "mode": "cached_fallback"}
+    # Authorization fails closed when GMS is down; there is no authoritative cache path.
+    return {"status": "online", "datahub_gms": "offline", "mode": "gms_unavailable"}
 
 
 @app.get("/")

@@ -58,6 +58,22 @@ def test_deployment_gate_approved_offline_fails(mock_httpx_post):
     })
     assert run_gate_func("urn:li:mlModel:approved_offline") == 1
 
+
+def test_deployment_gate_missing_evaluation_source_fails(mock_httpx_post):
+    setup_mock_response(mock_httpx_post, {
+        "evaluation": {"verdict": "approved", "reason_code": "CLEAN"},
+    })
+    assert run_gate_func("urn:li:mlModel:missing_source") == 1
+
+
+def test_deployment_gate_unknown_evaluation_source_fails(mock_httpx_post):
+    setup_mock_response(mock_httpx_post, {
+        "evaluation": {"verdict": "approved", "reason_code": "CLEAN"},
+        "evaluation_source": "something_else",
+    })
+    assert run_gate_func("urn:li:mlModel:unknown_source") == 1
+
+
 def test_deployment_gate_malformed_response(mock_httpx_post):
     mock_response = MagicMock()
     mock_response.json.side_effect = ValueError("Expecting value: line 1 column 1 (char 0)")

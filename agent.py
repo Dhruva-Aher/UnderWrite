@@ -228,7 +228,7 @@ class GraphAcquisition:
         # Fine-grained lineage identifies schema fields separately from their
         # datasets. Read tags on those field entities so a column-level policy
         # can evaluate the actual provenance node, not a dataset-wide proxy.
-        for ds_data in datasets_data.values():
+        for ds_urn, ds_data in datasets_data.items():
             lineage = ds_data.get("lineage")
             field_tags: dict[str, Any] = {}
             field_terms: dict[str, Any] = {}
@@ -243,8 +243,8 @@ class GraphAcquisition:
                         )
             ds_data["field_tags"] = field_tags
             ds_data["field_terms"] = field_terms
-            
-            # Fetch SchemaMetadata for field descriptions
+
+            # Fetch SchemaMetadata for field descriptions on THIS dataset.
             schema_aspect = self.client.get_aspect(ds_urn, sc.SchemaMetadataClass)
             field_descriptions = {}
             if schema_aspect and schema_aspect.fields:

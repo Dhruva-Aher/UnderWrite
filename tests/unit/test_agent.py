@@ -64,6 +64,29 @@ def test_depth_limit_fails_closed():
     assert verdict.reason_code == "INCOMPLETE_LINEAGE"
 
 
+def test_cycle_does_not_infinite_loop_and_still_finds_leak():
+    """Cycle-safe DFS: revisit prevention must not hide a reachable forbidden tag."""
+    graph = InternalGraph()
+    model = "model"
+    a = "dataset-a"
+    b = "dataset-b"
+    leak = "schema-field-leak"
+    graph.add_node(model, "mlModel", model)
+    graph.add_node(a, "dataset", a)
+    graph.add_node(b, "dataset", b)
+    graph.add_node(leak, "schemaField", leak, tags={"urn:li:tag:post_outcome"})
+    graph.add_edge(model, a)
+    graph.add_edge(a, b)
+    graph.add_edge(b, a)  # cycle
+    graph.add_edge(b, leak)
+
+    verdict = PolicyEvaluator().evaluate(graph, model)
+
+    assert verdict.verdict == Verdict.BLOCKED
+    assert verdict.reason_code == "TARGET_LEAKAGE"
+    assert any(leak in ep.path for ep in verdict.evidence_paths)
+
+
 def test_model_without_features_fails_closed(mock_client: MockMetadataClient):
     mock_client.aspects[MODEL_CHURN][sc.MLModelPropertiesClass].mlFeatures = []
 

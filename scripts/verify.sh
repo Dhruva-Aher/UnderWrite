@@ -51,8 +51,8 @@ fi
 echo "[4/6] Running Test Suite..."
 python3.13 -m pytest tests/
 
-echo "[5/6] Verifying Deterministic Demo Execution..."
-python3.13 demo/run_demo.py
+echo "[5/6] Verifying Deterministic Offline Demo Execution..."
+python3.13 demo/run_demo.py --offline
 
 echo "[6/6] Testing Frontend and Docker Build..."
 if ! command -v npm &> /dev/null; then

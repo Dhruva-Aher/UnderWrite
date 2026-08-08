@@ -36,31 +36,8 @@ def print_diagnostic(label: str, value: str, color: str = ""):
     print(f"  {BOLD}{label.rjust(14)}:{RESET} {color}{value}{RESET}")
 
 
-def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) -> int:
-    """Call Underwrite and translate its result into a CI-safe decision with rich output."""
-    endpoint = f"{api_url.rstrip('/')}/evaluate"
-    
-    print(f"\n{BOLD}{CYAN}Underwrite ━━ Executable Metadata{RESET}")
-    print(f"{GRAY}Evaluating deployment against DataHub graph...{RESET}\n")
-    
-    # 1. Fetch payload
-    try:
-        with httpx.Client(timeout=timeout_seconds) as client:
-            response = client.post(endpoint, json={"model_urn": model_urn})
-        response.raise_for_status()
-        payload = response.json()
-    except (httpx.RequestError, ValueError) as exc:
-        print(f"{BOLD}{RED}error:{RESET} Failed to reach Underwrite API at {endpoint}")
-        print(f"  {GRAY}{exc}{RESET}")
-        print(f"::error title=Underwrite API Error::Failed to reach Underwrite API: {exc}")
-        return 1
-    except httpx.HTTPStatusError as exc:
-        print(f"{BOLD}{RED}error:{RESET} API returned status {exc.response.status_code}")
-        print(f"  Response: {exc.response.text}")
-        return 1
-
 def process_payload(api_url: str, payload: dict) -> int:
-    # 2. Extract fields
+    """Translate an Underwrite evaluation payload into a CI-safe exit code."""
     req = payload.get("request", {})
     evl = payload.get("evaluation", {})
     source = payload.get("evaluation_source", "unknown")
@@ -72,22 +49,19 @@ def process_payload(api_url: str, payload: dict) -> int:
     remediation_available = payload.get("remediation_available", False)
     timeout_seconds = 15.0
 
-    # Write Outputs
     set_github_output("verdict", verdict)
     set_github_output("decision_id", decision_id)
     set_github_output("reason_code", reason_code)
     set_github_output("latency_ms", str(latency))
     set_github_output("evaluation_source", source)
 
-    # 3. Validation Rules
     if source != "live_datahub":
         print(f"{BOLD}{RED}error:{RESET} {reason_code}")
         print_diagnostic("Exit Reason", "Evaluation is not backed by live DataHub evidence.")
         print_diagnostic("Source", source, YELLOW)
-        print("\n::error title=Underwrite Verification Failed::Live DataHub evidence required. Received cached fallback.")
+        print("\n::error title=Underwrite Verification Failed::Live DataHub evidence required.")
         return 1
 
-    # 4. Rich Diagnostic Output
     if verdict == "approved":
         print(f"{BOLD}{GREEN}success:{RESET} {reason_code}")
         print_diagnostic("Policy", "All deterministic checks passed")
@@ -97,11 +71,10 @@ def process_payload(api_url: str, payload: dict) -> int:
         print_diagnostic("Next Action", "Proceed with deployment")
         return 0
 
-    # Blocked formatting
     print(f"{BOLD}{RED}error:{RESET} {reason_code}")
     print_diagnostic("Decision", "BLOCKED", RED)
     print_diagnostic("Policy", reason_code)
-    
+
     evidence_str = "No specific evidence path provided."
     if evidence_paths:
         ep = evidence_paths[0]
@@ -109,8 +82,7 @@ def process_payload(api_url: str, payload: dict) -> int:
         feature_urn = ep.get("feature_urn", "unknown")
         tag = ep.get("tag_found", "unknown")
         evidence_str = f"Feature {feature_urn} derives from forbidden dataset {tainted_urn} (Tag: {tag})"
-        
-        # Link back to DataHub
+
         dataset_name = tainted_urn.split(",")[-2] if "," in tainted_urn else tainted_urn
         print_diagnostic("DataHub Ref", f"{req.get('gms_endpoint', 'http://localhost:8080')}/dataset/{dataset_name}")
 
@@ -132,24 +104,20 @@ def process_payload(api_url: str, payload: dict) -> int:
             for line in markdown.splitlines():
                 print(f"  {line}")
             print()
-
-            
         except Exception as e:
             print(f"  {GRAY}Remediation Advisor unavailable: {e}{RESET}\n")
 
-    # GitHub Annotation
     print(f"::error title=Underwrite: {reason_code}::Deployment blocked. {evidence_str}")
-    
     return 1
+
 
 def evaluate_deployment(api_url: str, model_urn: str, timeout_seconds: float) -> int:
     """Call Underwrite and translate its result into a CI-safe decision with rich output."""
     endpoint = f"{api_url.rstrip('/')}/evaluate"
-    
+
     print(f"\n{BOLD}{CYAN}Underwrite ━━ Executable Metadata{RESET}")
     print(f"{GRAY}Evaluating deployment against DataHub graph...{RESET}\n")
-    
-    # 1. Fetch payload
+
     try:
         with httpx.Client(timeout=timeout_seconds) as client:
             response = client.post(endpoint, json={"model_urn": model_urn})
@@ -176,11 +144,11 @@ def main() -> int:
     )
     parser.add_argument("--timeout-seconds", type=float, default=15.0)
     args = parser.parse_args()
-    
+
     print("::group::Underwrite Evaluation")
     exit_code = evaluate_deployment(args.api_url, args.model_urn, args.timeout_seconds)
     print("::endgroup::")
-    
+
     return exit_code
 
 

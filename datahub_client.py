@@ -65,15 +65,31 @@ class DataHubWriteBackClient:
         return self.client.write_documentation(model_urn, summary)
 
 
+def normalize_writeback_payload(verdict_data: dict) -> dict:
+    """Accept flat demo payloads or nested /evaluate API responses."""
+    request = verdict_data.get("request") or {}
+    evaluation = verdict_data.get("evaluation") or {}
+    return {
+        "model_urn": verdict_data.get("model_urn") or request.get("model_urn"),
+        "reason_code": verdict_data.get("reason_code") or evaluation.get("reason_code"),
+        "verdict": verdict_data.get("verdict") or evaluation.get("verdict"),
+        "evidence_paths": verdict_data.get("evidence_paths", []),
+        "headline": verdict_data.get("headline") or evaluation.get("headline"),
+    }
+
+
 def process_verdict_writeback_event(
     verdict_data: dict,
     gms_url: str | None = None,
     client: MetadataClient | None = None,
 ) -> WritebackResult:
     """Event-driven background worker. Fired asynchronously after evaluate."""
+    verdict_data = normalize_writeback_payload(verdict_data)
     model_urn = verdict_data.get("model_urn")
     reason_code = verdict_data.get("reason_code")
     verdict = verdict_data.get("verdict")
+    if hasattr(verdict, "value"):
+        verdict = verdict.value
 
     if not model_urn or not reason_code:
         return WritebackResult(status="SKIPPED", message="Missing required verdict data")
@@ -148,10 +164,16 @@ def process_verdict_writeback_event(
 
         if all(outcomes):
             _DEDUP_CACHE.add(cache_key)
-            return WritebackResult(status="SUCCESS", message="DataHub write-back complete")
+            is_mock = client is not None and type(client).__name__ == "MockMetadataClient"
+            msg = (
+                "In-memory mock write-back complete (not GMS)"
+                if is_mock
+                else "DataHub GMS write-back complete"
+            )
+            return WritebackResult(status="SUCCESS", message=msg)
         else:
             logger.warning("DataHub write-back incomplete for %s; event remains retryable", model_urn)
-            return WritebackResult(status="INCOMPLETE", message="DataHub write-back incomplete")
+            return WritebackResult(status="INCOMPLETE", message="Write-back incomplete")
     except Exception as e:
         logger.warning("DataHub background write-back skipped (GMS offline: %s)", e)
-        return WritebackResult(status="ERROR", message=f"DataHub GMS exception: {e}")
+        return WritebackResult(status="ERROR", message=f"Write-back exception: {e}")

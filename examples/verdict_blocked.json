@@ -2,33 +2,28 @@
   "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
   "verdict": "blocked",
   "reason_code": "TARGET_LEAKAGE",
-  "evaluated_at": "2026-07-24T15:45:00Z",
+  "evaluated_at": "2026-08-07T00:00:00Z",
   "evidence_paths": [
     {
-      "feature_urn": "urn:li:mlFeature:(churn_features,discount_history)",
-      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
-      "field_name": "retention_discount",
+      "policy_id": "ML-LEAK-001",
+      "feature_urn": "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)",
+      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)",
       "tag_found": "urn:li:tag:post_outcome",
       "path": [
         "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
-        "urn:li:mlFeature:(churn_features,discount_history)",
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
-        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)"
+        "urn:li:mlFeature:(urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD),feature1)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,model_input,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD)",
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,intermediate,PROD),status_cleaned)",
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw.customers,PROD),customer_status)"
       ]
     }
   ],
   "unresolved_nodes": [],
   "datahub_writeback": {
-    "tags_applied": [
-      "urn:li:tag:model_blocked"
-    ],
-    "incidents_created": [
-      {
-        "entity_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
-        "type": "TARGET_LEAKAGE",
-        "title": "Structural Target Leakage Intercepted by Underwrite"
-      }
-    ],
-    "institutional_memory_updated": true
+    "tags_applied": ["urn:li:tag:model-at-risk"],
+    "incidents_created": true,
+    "institutional_memory_updated": true,
+    "_note": "Writeback is a side effect; it does not alter the deterministic verdict."
   }
 }

@@ -74,13 +74,28 @@ class DataHubClient(MetadataClient):
         return self._graph
 
     def is_healthy(self) -> bool:
-        """Check GMS without issuing an invalid aspect request."""
-        try:
-            response = requests.get(f"{self.gms_url.rstrip('/')}/healthcheck", timeout=2)
-            return response.status_code == 200
-        except requests.exceptions.RequestException as e:
-            logger.warning("DataHub GMS health check failed at %s: %s", self.gms_url, e)
-            return False
+        """Check GMS without issuing an invalid aspect request.
+
+        DataHub versions differ: some expose ``/healthcheck``, others ``/health``.
+        """
+        base = self.gms_url.rstrip("/")
+        last_error: Exception | None = None
+        for path in ("/healthcheck", "/health"):
+            try:
+                response = requests.get(f"{base}{path}", timeout=2)
+                if response.status_code == 200:
+                    return True
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                continue
+        if last_error is not None:
+            logger.warning("DataHub GMS health check failed at %s: %s", self.gms_url, last_error)
+        else:
+            logger.warning(
+                "DataHub GMS health check failed at %s: no /healthcheck or /health endpoint returned 200",
+                self.gms_url,
+            )
+        return False
 
     def get_aspect(self, entity_urn: str, aspect_type: Any) -> Any | None:
         """Fetch a specific aspect from DataHub graph with domain error translation."""

@@ -1,124 +1,96 @@
-# Underwrite 🛡️
+# Underwrite
 
-> **Metadata-aware CI that deterministically blocks unsafe ML deployments.**
+> **DataHub already knows how your data is connected. Underwrite makes that knowledge enforceable.**
 
----
-
-## 🛑 The Problem: Target Leakage is Invisible to CI
-
-A machine learning model cannot unsee data. If forbidden data (like a future outcome) leaks into your training set, the model is corrupted. 
-
-Today, this happens silently. Data is renamed across transformations. Pipelines merge. The leak becomes invisible. You deploy a corrupted model, and it fails catastrophically.
-
-Traditional CI only knows if the code compiles. **It cannot see your metadata.**
+An ML feature can look safe in code. DataHub shows that three transformations upstream it derives from post-outcome data. Underwrite discovers that lineage and fails CI before the corrupted model deploys.
 
 ---
 
-## 💡 Why It Matters: Actionable Metadata
+## Why CI alone cannot solve this
 
-Underwrite uses metadata to stop bad deployments. It does not just analyze metadata passively—it breaks the build if forbidden data reaches a production model. 
+```text
+raw outcome column
+      ↓ renamed
+      ↓ aggregated
+      ↓ feature store
+      ↓
+   ML model
+```
 
-| Feature | GitHub Actions | Underwrite |
+By the time the feature reaches the model, the dangerous relationship is invisible to code review. **Underwrite turns DataHub lineage into a CI authorization boundary** — not a report.
+
+| | Ordinary CI | Underwrite |
 | :--- | :---: | :---: |
-| Unit Tests & Linting | ✓ | ✓ |
-| **Reads Metadata Graph** | ✗ | **✓** |
-| **Lineage Traversal (DFS)**| ✗ | **✓** |
-| **Blocks Unsafe ML Deployment** | ✗ | **✓** |
-| **Writes Incidents back** | ✗ | **✓** |
+| Compiles / tests | ✓ | ✓ |
+| Reads DataHub fine-grained lineage | ✗ | **✓** |
+| Deterministic policy verdict | ✗ | **✓** |
+| Blocks unsafe ML deploy (non-zero exit) | ✗ | **✓** |
+| Writes incidents back to DataHub | ✗ | **✓** |
+
+**DataHub evidence determines authorization. AI explains remediation.** The LLM cannot decide whether deployment succeeds.
 
 ---
 
-## 🏗️ Architecture: Why Traditional CI Fails
+## Quick Start (live DataHub — the path judges should run)
 
-GitHub Actions only sees the *code* that changed. It does not know that a dataset feeds into a pipeline that eventually trains a risk-prediction ML model. 
+Requires DataHub GMS (default `http://localhost:8080`). Python 3.13 recommended.
 
-Underwrite bridges this gap by acting as a strict deployment gate backed by **DataHub**. 
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # set UNDERWRITE_GMS_URL / token if needed
+
+python seed.py                    # ingest demo lineage into GMS
+python demo/run_demo.py           # live: traverse → verdict → writeback
+python preflight.py               # starts API when GMS is healthy
+python scripts/deployment_gate.py \
+  --model-urn 'urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)'
+```
+
+Expected shape: connect to GMS → evaluate `churn_model_v2` → **BLOCKED** with evidence paths → **live** DataHub writeback → gate exits non-zero.
+
+Exit 0 only when `verdict == approved` **and** `evaluation_source == live_datahub`.
+
+Optional UI: with the API up, open the app. The console calls `POST /evaluate` and displays `evaluation_source` honestly — it does not invent a live DataHub connection.
+
+### Offline fixture (reproducibility only)
+
+```bash
+python demo/run_demo.py --offline
+```
+
+This uses an in-memory mock. It is **not** a live DataHub evaluation. Prefer the live path above for judging.
+
+---
+
+## Architecture (five stages)
+
+**Acquisition → Normalization → Traversal → Evaluation → Verdict**
 
 ```mermaid
-flowchart TD
-    subgraph Traditional CI (Blind)
-        PR[Deployment Request] --> CodeTest[Unit Tests Pass ✅]
-    end
-
-    subgraph Underwrite (Metadata-Aware)
-        PR --> DH[(DataHub Fine-Grained Lineage API)]
-        DH -- Traverses lineage graph --> Eval[Deterministic Policy Gate]
-        Eval -- Violation Found --> Block[❌ Block Build]
-        
-        Block --> AI[AI Remediation Advisor]
-        AI --> Draft[Markdown Remediation Advice]
-        Block --> Inc[Write Incident to DataHub]
-    end
-
-    CodeTest -.-x Underwrite
-    
-    classDef safe fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:white;
-    classDef danger fill:#e74c3c,stroke:#c0392b,stroke-width:2px,color:white;
-    classDef dh fill:#3498db,stroke:#2980b9,stroke-width:2px,color:white;
-    
-    class CodeTest safe;
-    class Block danger;
-    class DH dh;
+flowchart LR
+    Deploy[Deploy request] --> DH[(DataHub FineGrainedLineage)]
+    DH --> Gate[Deterministic policy gate]
+    Gate -->|violation| Block[CI exit ≠ 0]
+    Gate -->|clean + live| Pass[CI exit 0]
+    Block --> AI[AI remediation advice]
+    Block --> WB[DataHub incident writeback]
 ```
 
-**Phase 1: Deterministic Enforcement (Safety)**: We strictly evaluate the column-level fine-grained lineage. Zero heuristics. Zero AI hallucinations. Even an APPROVED payload cannot deploy unless its source is an authoritative live DataHub evaluation.
-**Phase 2: Generative Remediation (Velocity)**: **AI-generated remediation runs only when DataHub Agent Context Kit and a configured LLM are available. Otherwise Underwrite returns deterministic evidence-only remediation.**
-
-```python
-# Our strict initialization path
-tools = build_langchain_tools(
-    client,
-    include_mutations=False,
-)
-```
+Full design notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · algorithm: [`docs/algorithm.md`](docs/algorithm.md)
 
 ---
 
-## 📸 Product Proof
+## FAQ
 
-### 1. The Verification Dashboard
-*(See the web UI for live verification results)*
+**Is this just a leakage detector?**  
+No. Target leakage is the demonstrated policy. The product is **metadata-backed deployment policy enforcement** — DataHub decides; CI enforces.
 
-### 2. Live Lineage Visualization
-*(Graphs are rendered deterministically from DataHub responses)*
-
-### 3. DataHub Writeback (Incidents)
-*(Incidents and tags are synchronized back to DataHub strictly as side effects)*
+**Why not ask an LLM whether the model looks dangerous?**  
+Authorization must be deterministic and fail-closed. AI runs only after a block, read-only via Agent Context Kit.
 
 ---
 
-## 🚀 Quick Start
+## License
 
-**Supported Environments**: Recommended: Python 3.13. Verified with Python 3.13. (Python 3.14 is currently not supported due to dependency compatibility)
-
-1. Clone the repository.
-2. Create a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run the orchestrator:
-   ```bash
-   python demo/run_demo.py
-   ```
-5. Open the frontend console to see the `reactflow` graph updates.
-
----
-
-## ❓ FAQ
-
-**Q: Doesn't GitHub Actions already do this?**
-A: No. GitHub Actions can execute Underwrite, but ordinary code-level CI cannot determine whether an ML feature is transitively derived from forbidden upstream data. Underwrite uses DataHub's metadata graph to make that authorization decision.
-
-**Q: Why not just use AI to check the PR?**
-A: You cannot push an LLM hallucination to a production incident system. We use a deterministic engine for the authorization decision (safety), and AI only for the remediation suggestion (velocity).
-
----
-
-## 📝 License
-
-Apache 2.0 License.
+Apache 2.0

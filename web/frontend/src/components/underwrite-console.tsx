@@ -2,18 +2,8 @@
 
 import { parseUrn } from "@/lib/urn";
 import { useState, createContext, useContext } from "react";
-import { Verdict, REQUEST, EVIDENCE, WRITEBACK, EXECUTION_EVENTS, EVIDENCE_SUMMARY, DECISION_SUMMARY, INSPECTOR } from "@/lib/underwrite-data";
+import { Verdict } from "@/lib/underwrite-data";
 import GraphVisualizer from "./GraphVisualizer";
-
-const EVAL = {
-  denials: 2,
-  warnings: 1,
-  allowances: 1,
-  headline: DECISION_SUMMARY.headline,
-  explanation: DECISION_SUMMARY.reason,
-  policies_evaluated: 4,
-  latency_ms: 96,
-};
 
 /* ---------- canonical-URN disclosure ---------- */
 
@@ -146,31 +136,56 @@ function Section({
 function RequestBar({
   onEvaluate,
   state,
+  request,
+  evalSource,
 }: {
   onEvaluate: () => void;
-  state: "idle" | "running" | "done";
+  state: "idle" | "running" | "done" | "error";
+  request: {
+    model_urn: string;
+    environment: string;
+    action: string;
+    requested_by: string;
+    request_id: string;
+  };
+  evalSource: string;
 }) {
+  const sourceLabel =
+    evalSource === "live_datahub"
+      ? "DataHub: Live GMS"
+      : evalSource === "not_evaluated"
+        ? "Not evaluated"
+        : evalSource === "unavailable"
+          ? "DataHub: Unavailable (fail-closed)"
+          : `Source: ${evalSource}`;
+  const sourceTone =
+    evalSource === "live_datahub"
+      ? "border-approved/60 text-approved bg-approved-dim/40"
+      : evalSource === "not_evaluated"
+        ? "border-border text-muted-foreground"
+        : "border-warning/60 bg-warning-dim/40 text-warning";
+
   return (
     <div className="grid grid-cols-1 gap-px bg-border lg:grid-cols-[1fr_auto]">
       <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
         <div className="bg-surface px-4 py-2.5">
           <dt className="label-xs">Subject</dt>
           <dd className="mt-1">
-            <UrnRef value={REQUEST.model_urn} showEntity={false} />
+            <UrnRef value={request.model_urn} showEntity={false} />
           </dd>
         </div>
         <div className="bg-surface px-4 py-2.5">
           <dt className="label-xs">Target Environment</dt>
-          <dd className="mt-1 font-mono text-[12px]">{REQUEST.environment}</dd>
+          <dd className="mt-1 font-mono text-[12px]">{request.environment}</dd>
         </div>
         <div className="bg-surface px-4 py-2.5">
           <dt className="label-xs">Requested Operation</dt>
-          <dd className="mt-1 font-mono text-[12px]">{REQUEST.action}</dd>
+          <dd className="mt-1 font-mono text-[12px]">{request.action}</dd>
         </div>
         <div className="bg-surface px-4 py-2.5">
           <dt className="label-xs">Principal</dt>
           <dd className="mt-1">
-            <UrnRef value={REQUEST.requested_by} showEntity={false} />
+            <UrnRef value={request.requested_by} showEntity={false} />
           </dd>
         </div>
       </dl>
@@ -183,26 +198,21 @@ function RequestBar({
         >
           {state === "running" ? "Evaluating…" : "Evaluate Trust"}
         </button>
-        <span className="label-xs whitespace-nowrap">{REQUEST.request_id}</span>
-        
-        {/* Offline Demo / Live DataHub Badge */}
-        <span className="ml-auto inline-flex items-center px-2 py-1 text-[11px] font-mono border border-metadata text-metadata bg-metadata/10 rounded">
-          ✓ Live DataHub Connected
+        <span className="label-xs whitespace-nowrap">{request.request_id}</span>
+        <span className={`ml-auto inline-flex items-center px-2 py-1 text-[11px] font-mono border uppercase tracking-[0.08em] ${sourceTone}`}>
+          {sourceLabel}
         </span>
       </div>
     </div>
   );
 }
 
-function GlobalStatsPanel() {
+function HonestBanner() {
   return (
-    <div className="bg-surface border-y border-border px-4 py-3 grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
-      <div><div className="font-mono text-[16px] text-foreground">4,381</div><div className="text-[10px] text-muted-foreground uppercase">Assets</div></div>
-      <div><div className="font-mono text-[16px] text-foreground">247</div><div className="text-[10px] text-muted-foreground uppercase">Policies</div></div>
-      <div><div className="font-mono text-[16px] text-warning">42</div><div className="text-[10px] text-muted-foreground uppercase">Critical Assets</div></div>
-      <div><div className="font-mono text-[16px] text-metadata">91 ms</div><div className="text-[10px] text-muted-foreground uppercase">Traversal</div></div>
-      <div><div className="font-mono text-[16px] text-metadata">38 ms</div><div className="text-[10px] text-muted-foreground uppercase">Evaluation</div></div>
-      <div><div className="font-mono text-[16px] text-blocked font-bold">94</div><div className="text-[10px] text-muted-foreground uppercase">Risk Score</div></div>
+    <div className="border-b border-border bg-surface px-4 py-2 font-mono text-[11px] text-muted-foreground">
+      Authoritative path: <span className="text-foreground">POST /evaluate</span> +{" "}
+      <span className="text-foreground">scripts/deployment_gate.py</span>. This console displays that
+      response; it does not invent a live DataHub connection.
     </div>
   );
 }
@@ -214,44 +224,41 @@ function DecisionBanner({ evaluated, EVAL, WRITEBACK }: { evaluated: boolean; EV
   const denies = EVAL.denials ?? 0;
   const warns = EVAL.warnings ?? 0;
   const allows = EVAL.allowances ?? 0;
-  const writebackAspects = Array.from(new Set(WRITEBACK.map((w) => w.aspect)));
-
-
+  const writebackAspects = Array.from(new Set((WRITEBACK || []).map((w: any) => w.aspect).filter(Boolean)));
+  const verdict = String(EVAL.verdict || "").toUpperCase();
+  const isBlocked = verdict === "BLOCKED";
+  const verdictColor = !evaluated
+    ? "text-muted-foreground"
+    : isBlocked
+      ? "text-blocked"
+      : "text-approved";
+  const borderColor = !evaluated
+    ? "border-l-border-strong bg-surface"
+    : isBlocked
+      ? "border-l-blocked bg-blocked-dim/25"
+      : "border-l-approved bg-approved-dim/25";
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={`border-l-2 px-4 py-8 ${
-        evaluated ? "border-l-blocked bg-blocked-dim/25" : "border-l-border-strong bg-surface"
-      }`}
-    >
+    <div role="status" aria-live="polite" className={`border-l-2 px-4 py-8 ${borderColor}`}>
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         <span className="label-xs">
-          {REQUEST.action} · {REQUEST.environment}
+          {EVAL.action || "DEPLOY"} · {EVAL.environment || "PROD"}
         </span>
-        <span
-          className={`mt-2 font-mono text-[80px] leading-none font-bold tracking-tight ${
-            evaluated ? "text-blocked animate-in fade-in duration-300" : "text-muted-foreground"
-          }`}
-        >
-          {evaluated ? "BLOCKED" : "NOT EVALUATED"}
+        <span className={`mt-2 font-mono text-[80px] leading-none font-bold tracking-tight ${verdictColor}`}>
+          {evaluated ? verdict || "UNKNOWN" : "NOT EVALUATED"}
         </span>
         <p className="mt-3 text-[17px] font-medium text-foreground">
           {evaluated ? EVAL.headline : "Run trust evaluation to produce a binding decision."}
         </p>
         {evaluated ? (
-          <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground">
-            {EVAL.explanation}
-          </p>
+          <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground">{EVAL.explanation}</p>
         ) : null}
-
         <div className="mt-5 flex gap-px bg-border">
           {[
             { k: "denials", v: denies, tone: "text-blocked" },
             { k: "warnings", v: warns, tone: "text-warning" },
             { k: "allowances", v: allows, tone: "text-approved" },
-            { k: "mutations staged", v: WRITEBACK.length, tone: "text-metadata" },
+            { k: "writeback ops", v: (WRITEBACK || []).length, tone: "text-metadata" },
           ].map((c) => (
             <div key={c.k} className="bg-surface px-5 py-2 text-center">
               <div className={`font-mono text-[20px] leading-tight font-semibold ${c.tone}`}>
@@ -261,28 +268,16 @@ function DecisionBanner({ evaluated, EVAL, WRITEBACK }: { evaluated: boolean; EV
             </div>
           ))}
         </div>
-
         <p className="mt-4 font-mono text-[11px] leading-5 text-muted-foreground">
-          <span className="text-foreground">metadata mutation on commit</span> → {writebackAspects.join(" · ")}{" "}
-          <span className="text-warning">(staged, not committed)</span>
+          <span className="text-foreground">evaluation_source</span> → {EVAL.evaluation_source || "not_evaluated"}
+          {writebackAspects.length ? <> · {writebackAspects.join(" · ")}</> : null}
         </p>
         <dl className="mt-1.5 flex flex-wrap justify-center gap-x-5 gap-y-1 font-mono text-[11px] text-muted-foreground">
-          <div>
-            <dt className="inline">mode=</dt>
-            <dd className="inline text-foreground">fail-closed</dd>
-          </div>
-          <div>
-            <dt className="inline">policies_evaluated=</dt>
-            <dd className="inline text-foreground">{evaluated ? EVAL.policies_evaluated : "—"}</dd>
-          </div>
-          <div>
-            <dt className="inline">latency=</dt>
-            <dd className="inline text-foreground">{evaluated ? EVAL.latency_ms + "ms" : "—"}</dd>
-          </div>
-          <div>
-            <dt className="inline">gms=</dt>
-            <dd className="inline text-foreground">{REQUEST.gms_endpoint}</dd>
-          </div>
+          <div><dt className="inline">mode=</dt><dd className="inline text-foreground">fail-closed</dd></div>
+          <div><dt className="inline">policies_evaluated=</dt><dd className="inline text-foreground">{evaluated ? EVAL.policies_evaluated : "—"}</dd></div>
+          <div><dt className="inline">latency=</dt><dd className="inline text-foreground">{evaluated ? `${EVAL.latency_ms}ms` : "—"}</dd></div>
+          <div><dt className="inline">reason=</dt><dd className="inline text-foreground">{evaluated ? EVAL.reason_code || "—" : "—"}</dd></div>
+          <div><dt className="inline">gms=</dt><dd className="inline text-foreground">{EVAL.gms_endpoint || "—"}</dd></div>
         </dl>
       </div>
     </div>
@@ -507,19 +502,75 @@ function DataTable({ columns, children }: { columns: string[]; children: React.R
 /* ---------- page ---------- */
 
 export function UnderwriteConsole() {
-  const [state, setState] = useState<"idle" | "running" | "done">("done");
-  const [selected, setSelected] = useState<string>("ev-01");
+  const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [rawUrns, setRawUrns] = useState(false);
-  const [modelUrn, setModelUrn] = useState("urn:li:mlModel:(urn:li:dataPlatform:mlflow,feed_ranking_v42,PROD)");
-  const EVAL_SOURCE = "cached_fixture";
-  const payload = undefined;
-  const evaluated = state === "done";
-  const decisive = EVIDENCE.find((e) => e.verdict === "BLOCKED") ?? EVIDENCE[0]!;
-  const others = (EVIDENCE || []).filter((e) => e.id !== decisive.id);
+  const [modelUrn, setModelUrn] = useState(
+    "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)"
+  );
+  const [payload, setPayload] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const evaluate = () => {
+  const evaluated = state === "done" && !!payload;
+  const evalSource = payload?.evaluation_source || (state === "idle" ? "not_evaluated" : "unavailable");
+  const request = payload?.request || {
+    model_urn: modelUrn,
+    environment: "PROD",
+    action: "DEPLOY",
+    requested_by: "urn:li:corpuser:underwrite-ui",
+    request_id: "—",
+    gms_endpoint: "—",
+  };
+  const evalBlock = {
+    ...(payload?.evaluation || {}),
+    evaluation_source: evalSource,
+    action: request.action,
+    environment: request.environment,
+    gms_endpoint: request.gms_endpoint,
+  };
+  const evidence = (payload?.evidence_paths || []).map((ep: any, i: number) => ({
+    id: `ev-${i}`,
+    feature_urn: ep.feature_urn,
+    tainted_urn: ep.tainted_urn,
+    tag_found: ep.tag_found,
+    policy_id: ep.policy_id,
+    path: ep.path || [],
+    rationale: ep.rationale || "",
+    verdict: "BLOCKED" as Verdict,
+    schemaFieldUrn: ep.feature_urn || "—",
+    upstreamFieldUrn: ep.tainted_urn || "—",
+    transform: "LINEAGE",
+    globalTag: ep.tag_found || "—",
+    aspect: "upstreamLineage",
+  }));
+  const decisive = evidence[0];
+  const others = evidence.slice(1);
+  const writeback = Array.isArray(payload?.write_back)
+    ? payload.write_back
+    : payload?.write_back
+      ? [payload.write_back]
+      : [];
+  const events = payload?.execution_events || [];
+
+  const evaluate = async () => {
     setState("running");
-    window.setTimeout(() => setState("done"), 550);
+    setError(null);
+    try {
+      const res = await fetch("/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model_urn: modelUrn }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.detail || `HTTP ${res.status}`);
+      }
+      setPayload(data);
+      setState("done");
+    } catch (e: any) {
+      setPayload(null);
+      setError(e?.message || "Evaluation failed");
+      setState("error");
+    }
   };
 
   return (
@@ -527,164 +578,101 @@ export function UnderwriteConsole() {
       <div className="min-h-screen bg-background">
         <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface px-4 py-2.5">
           <span className="font-mono text-[13px] font-semibold tracking-tight">UNDERWRITE</span>
-          <span aria-hidden className="text-border-strong">
-            /
-          </span>
+          <span aria-hidden className="text-border-strong">/</span>
           <span className="text-[12px] text-muted-foreground">Trust Runtime for DataHub</span>
-          <div className="ml-auto flex items-center gap-3">
-            <span className="font-mono text-[11px] text-muted-foreground">
-              datahub-gms v0.14.1 · policy-set 2026.07.3
-            </span>
-          </div>
+          <label className="ml-auto flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+            <input type="checkbox" checked={rawUrns} onChange={(e) => setRawUrns(e.target.checked)} />
+            show raw URNs
+          </label>
         </header>
 
-        <GlobalStatsPanel />
+        <HonestBanner />
 
         <Section index="01" title="Trust Evaluation Request" meta="admission control">
-          
           <div className="bg-surface px-4 py-3 border-b border-border">
-             <div className="flex items-center gap-3">
-               <span className="label-xs whitespace-nowrap">Model URN:</span>
-               <input 
-                 type="text" 
-                 className="flex-1 bg-background border border-border-strong px-2 py-1 text-[12px] font-mono text-foreground focus:outline-none focus:border-ring"
-                 value={modelUrn}
-                 onChange={(e) => setModelUrn(e.target.value)}
-                 disabled={state === "running"}
-               />
-               <span className={`border px-2 py-1 font-mono text-[10px] tracking-[0.08em] uppercase ${
-                  EVAL_SOURCE === "cached_fixture"
-                    ? "border-warning/60 bg-warning-dim/40 text-warning"
-                    : "border-border text-muted-foreground"
-                }`}>
-                  {EVAL_SOURCE === "cached_fixture" ? "DataHub: Cached Mode" : "DataHub: Live Mode"}
-                </span>
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  datahub-gms v0.14.1 · policy-set 2026.07.3
-                </span>
-             </div>
+            <div className="flex items-center gap-3">
+              <span className="label-xs whitespace-nowrap">Model URN:</span>
+              <input
+                type="text"
+                className="flex-1 bg-background border border-border-strong px-2 py-1 text-[12px] font-mono text-foreground focus:outline-none focus:border-ring"
+                value={modelUrn}
+                onChange={(e) => setModelUrn(e.target.value)}
+                disabled={state === "running"}
+              />
+            </div>
+            {error ? (
+              <p className="mt-2 font-mono text-[11px] text-blocked">{error}</p>
+            ) : null}
           </div>
-          <RequestBar onEvaluate={evaluate} state={state} />
-
-
-
+          <RequestBar onEvaluate={evaluate} state={state === "error" ? "idle" : state} request={request} evalSource={evalSource} />
         </Section>
 
         <Section index="02" title="Trust Decision" meta="deterministic fail-closed reducer">
-          <DecisionBanner evaluated={evaluated} EVAL={EVAL} WRITEBACK={WRITEBACK} />
+          <DecisionBanner evaluated={evaluated} EVAL={evalBlock} WRITEBACK={writeback} />
         </Section>
 
-        <Section
-          index="03"
-          title="Verification Evidence"
-          meta="schemaField → globalTag → policy → decision"
-        >
-          <div className="grid grid-cols-1 bg-surface lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-            <div>
-              <DecisiveProof
-                row={decisive}
-                selected={selected === decisive.id}
-                onSelect={() => setSelected(decisive.id)}
-              />
-              <div className="flex items-baseline gap-3 border-y border-border bg-surface px-4 py-1.5">
-                <span className="label-xs">Non-determining predicates</span>
-                <span className="label-xs ml-auto">evaluated · did not determine the verdict</span>
+        <Section index="03" title="Verification Evidence" meta="from /evaluate evidence_paths">
+          {decisive ? (
+            <div className="bg-surface px-4 py-4 font-mono text-[12px] space-y-2">
+              <div>
+                <span className="text-muted-foreground">policy </span>
+                {decisive.policy_id || "—"}
               </div>
-              <ol className="divide-y divide-border bg-surface">
-                {others.map((row) => (
-                  <SecondaryCheck
-                    key={row.id}
-                    row={row}
-                    selected={selected === row.id}
-                    onSelect={() => setSelected(row.id)}
-                  />
-                ))}
-              </ol>
+              <div>
+                <span className="text-muted-foreground">tainted </span>
+                <UrnRef value={decisive.tainted_urn || "—"} showEntity={false} />
+              </div>
+              <div>
+                <span className="text-muted-foreground">tag </span>
+                {decisive.tag_found || "—"}
+              </div>
+              <div className="break-all text-muted-foreground">
+                path: {(decisive.path || []).join(" → ")}
+              </div>
+              {decisive.rationale ? <div>{decisive.rationale}</div> : null}
+              {others.length ? (
+                <div className="pt-2 text-muted-foreground">{others.length} additional evidence path(s)</div>
+              ) : null}
             </div>
-            <NodeInspector id={selected} payload={payload} />
-          </div>
+          ) : (
+            <div className="bg-surface px-4 py-6 font-mono text-[12px] text-muted-foreground">
+              No evidence yet. Evaluate against a live DataHub-backed API (GMS healthy) to populate this panel.
+            </div>
+          )}
         </Section>
 
-        <Section index="04" title="FineGrainedLineage" meta="column-level · depth 4 · 42 edges">
-          <DataTable columns={["#", "Downstream Field", "Upstream Field", "Transform", "Tag", "Verdict"]}>
-            {EVIDENCE.map((e, i) => (
-              <tr key={e.id} className="align-top hover:bg-surface-raised">
-                <td className="px-4 py-2 font-mono text-[11px] text-muted-foreground">
-                  {String(i + 1).padStart(2, "0")}
-                </td>
-                <td className="w-[24%] px-4 py-2 pr-8">
-                  <UrnRef value={e.schemaFieldUrn} showEntity={false} />
-                </td>
-                <td className="w-[24%] px-4 py-2 pr-8">
-                  <UrnRef value={e.upstreamFieldUrn} showEntity={false} />
-                </td>
-                <td className="px-4 py-2 font-mono text-[11px] whitespace-nowrap">{e.transform}</td>
-                <td className="px-4 py-2 font-mono text-[11px] whitespace-nowrap text-warning">
-                  {e.globalTag}
-                </td>
-                <td className="px-4 py-2">
-                  <VerdictChip verdict={e.verdict} />
-                </td>
-              </tr>
-            ))}
-          </DataTable>
-        </Section>
-        <Section index="05" title="Lineage Graph Visualizer" meta="column-level · depth 4 · react-flow">
+        <Section index="04" title="Lineage Graph" meta="serialized from evaluation graph">
           <div className="bg-[#0f172a] p-4 text-[11px] leading-[1.6]">
             <GraphVisualizer nodes={payload?.graph?.nodes || []} edges={payload?.graph?.edges || []} />
           </div>
         </Section>
 
-
-
-        <Section
-          index="05"
-          title="Metadata Mutation"
-          meta="MetadataChangeProposal · staged, not committed"
-        >
-          <DataTable columns={["Entity", "Target", "Aspect", "Operation", "Status"]}>
-            {WRITEBACK.map((w) => (
-              <tr key={`${w.entity}.${w.aspect}`} className="align-top hover:bg-surface-raised">
-                <td className="px-4 py-2 font-mono text-[11px] whitespace-nowrap">{w.entity}</td>
-                <td className="max-w-[260px] px-4 py-2">
-                  <UrnRef value={w.urn} showEntity={false} />
-                </td>
-                <td className="px-4 py-2 font-mono text-[11px] whitespace-nowrap text-metadata">
-                  {w.aspect}
-                </td>
-                <td className="px-4 py-2 font-mono text-[11px]">{w.operation}</td>
-                <td className="px-4 py-2 whitespace-nowrap">
-                  <StatusText value={w.status} />
-                </td>
-              </tr>
-            ))}
-          </DataTable>
-        </Section>
-
-        <Section index="06" title="Trust Trace" meta="deterministic · replayable">
+        <Section index="05" title="Trust Trace" meta="deterministic · replayable">
           <ol className="divide-y divide-border">
-            {EXECUTION_EVENTS.map((e) => (
-              <li
-                key={e.timestamp}
-                className="grid grid-cols-[100px_110px_minmax(0,1fr)] gap-3 px-4 py-1.5 hover:bg-surface-raised"
-              >
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  {e.timestamp ? e.timestamp.split("T")[1]?.substring(0, 8) : ""}
-                </span>
-                <span className="font-mono text-[11px] text-metadata">{e.stage}</span>
-                <span className="font-mono text-[11px] break-all">{e.detail}</span>
-              </li>
-            ))}
+            {events.length ? (
+              events.map((e: any, idx: number) => (
+                <li
+                  key={`${e.timestamp || idx}-${e.stage}`}
+                  className="grid grid-cols-[100px_110px_minmax(0,1fr)] gap-3 px-4 py-1.5 hover:bg-surface-raised"
+                >
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {e.timestamp ? String(e.timestamp).split("T")[1]?.substring(0, 8) : ""}
+                  </span>
+                  <span className="font-mono text-[11px] text-metadata">{e.stage}</span>
+                  <span className="font-mono text-[11px] break-all">{e.detail}</span>
+                </li>
+              ))
+            ) : (
+              <li className="px-4 py-3 font-mono text-[11px] text-muted-foreground">No execution events yet.</li>
+            )}
           </ol>
         </Section>
 
-
-
         <footer className="px-4 py-3 font-mono text-[11px] text-muted-foreground">
-          underwrite trust runtime · request {REQUEST.request_id} · verdict is binding at
-          admission; metadata mutations remain staged until committed to DataHub GMS
+          underwrite · evaluation_source must be live_datahub for CI approve · UI mirrors API only
         </footer>
       </div>
     </UrnModeContext.Provider>
   );
 }
+

@@ -28,14 +28,19 @@ def build_incident_mcp(
     incident_type: str,
     description: str,
 ) -> MetadataChangeProposalWrapper:
-    """Build a MetadataChangeProposal for raising an Incident aspect on a dataset."""
+    """Build a MetadataChangeProposal for raising an Incident aspect on a dataset.
+
+    DataHub's IncidentInfo.type is a closed enum. Policy reason codes are stored
+    in customType with type=CUSTOM.
+    """
     now_ms = int(time.time() * 1000)
     stamp = sc.AuditStampClass(
         time=now_ms,
         actor="urn:li:corpuser:underwrite-agent",
     )
     incident_aspect = sc.IncidentInfoClass(
-        type=incident_type,
+        type=sc.IncidentTypeClass.CUSTOM,
+        customType=str(incident_type),
         entities=[dataset_urn],
         title=f"Governance Audit Warning: {incident_type}",
         description=f"Raised for downstream model {model_urn}: {description}",

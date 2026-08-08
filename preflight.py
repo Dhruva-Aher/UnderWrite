@@ -62,15 +62,17 @@ def verify_cache_fixtures() -> None:
 def check_datahub_gms() -> bool:
     """Check if local DataHub GMS container is reachable."""
     logger.info("Checking DataHub GMS status...")
+    base = settings.gms_url.rstrip("/")
     try:
-        r = httpx.get(f"{settings.gms_url}/healthcheck", timeout=3.0)
-        if r.status_code == 200:
-            logger.info("DataHub GMS is ONLINE at %s", settings.gms_url)
-            return True
+        for path in ("/healthcheck", "/health"):
+            r = httpx.get(f"{base}{path}", timeout=3.0)
+            if r.status_code == 200:
+                logger.info("DataHub GMS is ONLINE at %s (%s)", settings.gms_url, path)
+                return True
     except httpx.HTTPError as e:
         logger.warning("DataHub GMS health check failed (%s)", e)
     logger.warning(
-        "DataHub GMS is OFFLINE — system will operate in Layer 0 cached fallback mode"
+        "DataHub GMS is OFFLINE — live authorization will fail closed until GMS is available"
     )
     return False
 

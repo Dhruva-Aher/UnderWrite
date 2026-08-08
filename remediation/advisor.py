@@ -3,7 +3,6 @@ import logging
 from pydantic import BaseModel
 from llm_provider import get_llm
 from config import settings
-from datahub_client import create_datahub_client
 from langgraph.prebuilt import create_react_agent
 try:
     from datahub_agent_context.langchain_tools import build_langchain_tools
@@ -56,10 +55,20 @@ def deterministic_fallback(context: RemediationContext) -> Remediation:
 def generate(context: RemediationContext) -> Remediation:
     """
     Format evidence to markdown -> send to LLM (with DataHub ACK tools).
+
+    ACK requires the official ``datahub.sdk`` DataHubClient, not Underwrite's
+    metadata wrapper used by the deterministic gate.
     """
     try:
-        client = create_datahub_client(settings)
-        tools = build_langchain_tools(client, include_mutations=False) if build_langchain_tools else None
+        if not build_langchain_tools:
+            raise ValueError("datahub_agent_context.langchain_tools unavailable")
+        from datahub.sdk.main_client import DataHubClient as SdkDataHubClient
+
+        sdk_client = SdkDataHubClient(
+            server=settings.gms_url,
+            token=settings.datahub_token,
+        )
+        tools = build_langchain_tools(sdk_client, include_mutations=False)
         if not tools:
             raise ValueError("build_langchain_tools returned empty or None")
     except Exception as e:
