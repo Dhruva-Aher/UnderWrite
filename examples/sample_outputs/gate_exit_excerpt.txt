@@ -1,0 +1,12 @@
+# Captured from scripts/deployment_gate.py against live Underwrite API
+# Model: urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)
+# Pin: freeze-grand-prize-ready (f09ad46)
+
+evaluation_source=live_datahub
+verdict=blocked
+reason_code=TARGET_LEAKAGE
+Decision=BLOCKED
+GATE_EXIT=1
+
+# Note: demo/run_demo.py exiting 0 only means the orchestrator finished.
+# The CI authorization boundary is this gate process exit code (must be 1 when blocked).

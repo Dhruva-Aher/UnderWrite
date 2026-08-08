@@ -1,0 +1,40 @@
+{
+  "request": {
+    "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+    "environment": "PROD",
+    "action": "DEPLOY",
+    "requested_by": "urn:li:corpuser:unknown",
+    "request_id": "UW-REQ-VERIFIED",
+    "gms_endpoint": "http://localhost:8080"
+  },
+  "evaluation": {
+    "verdict": "blocked",
+    "reason_code": "TARGET_LEAKAGE",
+    "headline": "Blocked — trained on data it shouldn’t have seen.",
+    "explanation": "Target leakage detected in the acquired DataHub provenance graph.",
+    "policies_evaluated": 1,
+    "denials": 1,
+    "warnings": 0,
+    "allowances": 0
+  },
+  "evaluation_source": "live_datahub",
+  "evidence_paths": [
+    {
+      "policy_id": "ML-LEAK-001",
+      "feature_urn": "urn:li:mlFeature:(customer_features,discount_history)",
+      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
+      "tag_found": "urn:li:tag:post_outcome",
+      "field_name": "retention_discount",
+      "path": [
+        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+        "urn:li:mlFeature:(customer_features,discount_history)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)"
+      ],
+      "rationale": "Serving feature derives from a column tagged urn:li:tag:post_outcome through a non-anonymizing transform. Policy denies promotion."
+    }
+  ],
+  "remediation_available": true,
+  "_capture_note": "Live-shaped POST /evaluate blocked payload aligned with seed.py / freeze-grand-prize-ready (f09ad46). Distinct from the offline synthetic fixture. Prefer replaying against live GMS for judging."
+}

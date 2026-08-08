@@ -1,50 +1,53 @@
 # Underwrite: Demo Screenplay (≤ 3 minutes)
 
-**Hard limit**: Judges are not required to watch past three minutes.  
-**Thesis (end on this)**: *DataHub already knows how your data is connected. Underwrite makes that knowledge enforceable.*
+**Pin:** record from tag `freeze-grand-prize-ready` (`f09ad46`).  
+**Hard limit:** judges need not watch past three minutes.  
+**Thesis:** *DataHub already knows how your data is connected. Underwrite makes that knowledge enforceable in CI.*
 
-Do **not** feature-tour. Do **not** equal-bill AI with the gate. Show live DataHub.
+Live GMS only. Never show the offline fixture.  
+**Pair:** `churn_model_v2` (blocked) ↔ `churn_model_v2_fixed` (approved).  
+**Vocabulary:** `churn_model_v2` → `discount_history` → … → `raw_billing.retention_discount` (`post_outcome`).
 
----
-
-### **0:00 – 0:20 | Problem**
-**Show**: A feature name that looks harmless in training code / a model card.  
-**Say**: "This ML feature looks safe in code. Three transformations upstream, it derives from post-outcome data. The model cannot unsee that. Traditional CI never will."
-
-### **0:20 – 0:40 | Why ordinary CI fails**
-**Show**: Green unit tests / GitHub checks that only see the repo.  
-**Say**: "CI can tell you the code compiles. It cannot tell you whether a feature is transitively derived from forbidden upstream columns. That answer lives in the metadata graph."
-
-### **0:40 – 1:35 | Live DataHub → Underwrite → blocked deploy**
-**Show (must be live GMS, not the offline fixture)**:
-1. DataHub lineage UI (or seeded graph) for the leak path.
-2. `python demo/run_demo.py` (or the API + `deployment_gate.py`) connecting to GMS.
-3. **BLOCKED** verdict with evidence path printed.
-4. Gate exit non-zero / failed CI check.
-
-**Say**: "Underwrite walks DataHub FineGrainedLineage with a deterministic DFS. Forbidden tag on an upstream field → deployment fails. No LLM in this decision."
-
-### **1:35 – 2:05 | Deterministic evidence / trust boundary**
-**Show**: Evidence path list; mention `evaluation_source == live_datahub` required for approve.  
-**Say**: "Cached or spoofed 'approved' results cannot pass the gate. DataHub evidence authorizes. AI does not."
-
-### **2:05 – 2:30 | Remediation (supporting)**
-**Show**: Remediation markdown from the advisor (ACK, read-only).  
-**Say**: "Only after the block does AI explain how to fix the pipeline. It never decides whether deploy succeeds."
-
-### **2:30 – 2:50 | DataHub writeback**
-**Show**: Incident / tag written back in DataHub UI for the blocked model.  
-**Say**: "Authorization and catalog mutation are separate. Writeback failure does not rewrite the verdict."
-
-### **2:50 – 3:00 | Thesis**
-**On screen**: Underwrite.  
-**Say**: "DataHub already knows how your data is connected. Underwrite makes that knowledge enforceable."
+**Framing rule:** Lead with the **graph**, not the terminal. Sequence every beat as *autonomous agent work*: see lineage → walk it → decide → write back. The exit code is proof *after* the agent story, not the hero image.
 
 ---
 
-## Recording checklist
+### **0:00–0:25 | Cold open — inert graph → agent walks it**
+**Show (silent first):** DataHub lineage for `churn_model_v2` — the graph sitting there, inert. Pan/zoom toward the multi-hop path ending at `retention_discount` / `post_outcome`.  
+**Then narrate over the same UI as write-back lands:** tag `model-at-risk` + named incident appearing.  
+**Say:** "This lineage already lived in DataHub. The agent walks the graph on its own, finds the tainted column six hops upstream, decides to block the deploy, and writes the verdict back."  
+**Optional beat (≤3s):** Cut to terminal only long enough to flash `GATE_EXIT=1` / `evaluation_source=live_datahub` — confirmation, not the open.
 
-- [ ] GMS running; `python seed.py` completed before recording
-- [ ] Demo banner / logs say **LIVE DataHub**, never mock-as-real
-- [ ] No sqlglot / AST / "column drop blast radius" narrative — product is **lineage → policy → CI exit**
-- [ ] AI appears after the block, not as co-equal headline
+### **0:25–0:40 | Why InternalGraph (once — trust, not theater)**
+**Say:** "It acquires from DataHub once into an in-memory graph, then evaluates with no LLM in the decision and no live SDK calls mid-traversal. Deterministic authorization; DataHub stays the source of truth."
+
+### **0:40–0:55 | Counterfactual (the flashy hook)**
+**Show back-to-back, same cadence:**  
+1. `churn_model_v2` → blocked, named incident / `model-at-risk`.  
+2. `churn_model_v2_fixed` → approved, sails through (exit 0 / clean tag).  
+**Say:** "Same team, same day, same gate. One model gets blocked with a named incident. The other sails through clean."  
+Do not explain DFS here — the contrast *is* the argument.
+
+### **0:55–2:20 | Walkthrough (one blocked path, then breathe)**
+**Show:** Evidence path on the blocked model ending at `raw_billing.retention_discount`. Brief remediation/advisor beat only if it stays under the clock (AI explains *after* the block — never authorizes).  
+**Say:** "The feature looked safe in code. Column lineage made the leak enforceable."
+
+### **2:20–2:50 | Trust the artifact**
+**Show:** Repo pin/tag `freeze-grand-prize-ready`, `examples/sample_outputs/`, tests, LICENSE.  
+**Say:** "Judges can inspect the captured live payload without standing up GMS — and reproduce from this tagged commit."
+
+### **2:50–3:00 | Thesis**
+**On screen:** Underwrite.  
+**Say:** "DataHub already knows how your data is connected. Underwrite makes that knowledge enforceable in CI."
+
+---
+
+## Checklist
+- [ ] Recording from `freeze-grand-prize-ready`
+- [ ] **Opens on DataHub lineage graph**, not a terminal wall of text
+- [ ] Narration = walk → find → decide → write back (agentic sequence)
+- [ ] `churn_model_v2` vs `churn_model_v2_fixed` cut back-to-back (~15s)
+- [ ] Gate exit **1** only as proof beat for blocked (not the cold open)
+- [ ] Writeback (tag + incident) visible in DataHub UI
+- [ ] No `customer_status` / offline fixture vocabulary
+- [ ] InternalGraph said once only
