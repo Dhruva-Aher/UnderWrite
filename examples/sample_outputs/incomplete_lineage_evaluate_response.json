@@ -1,0 +1,255 @@
+{
+    "request": {
+        "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+        "environment": "PROD",
+        "action": "DEPLOY",
+        "requested_by": "urn:li:corpuser:underwrite-agent",
+        "request_id": "UW-REQ-86CEB91B",
+        "gms_endpoint": "http://localhost:8080"
+    },
+    "evaluation": {
+        "verdict": "blocked",
+        "reason_code": "INCOMPLETE_LINEAGE",
+        "headline": "Blocked \u2014 insufficient lineage to approve.",
+        "explanation": "The acquired DataHub provenance graph is incomplete; approval is denied.",
+        "latency_ms": 29,
+        "policies_evaluated": 1,
+        "denials": 0,
+        "warnings": 0,
+        "allowances": 0
+    },
+    "graph": {
+        "nodes": [
+            {
+                "id": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+                "position": {
+                    "x": 564,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "fraud_model_v3",
+                    "type": "model",
+                    "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:mlFeature:(risk_features,transaction_velocity)",
+                "position": {
+                    "x": 294,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "transaction_velocity",
+                    "type": "feature",
+                    "urn": "urn:li:mlFeature:(risk_features,transaction_velocity)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "unknown:urn:li:mlFeature:(risk_features,transaction_velocity)",
+                "position": {
+                    "x": 24,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1c1917",
+                    "color": "#fcd34d",
+                    "border": "1px dashed #f59e0b",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "Unresolved Source",
+                    "type": "unknown",
+                    "urn": "unknown:urn:li:mlFeature:(risk_features,transaction_velocity)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:mlFeature:(risk_features,ip_reputation_score)",
+                "position": {
+                    "x": 294,
+                    "y": 104
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "ip_reputation_score",
+                    "type": "feature",
+                    "urn": "urn:li:mlFeature:(risk_features,ip_reputation_score)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "unknown:urn:li:mlFeature:(risk_features,ip_reputation_score)",
+                "position": {
+                    "x": 24,
+                    "y": 104
+                },
+                "style": {
+                    "background": "#1c1917",
+                    "color": "#fcd34d",
+                    "border": "1px dashed #f59e0b",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "Unresolved Source",
+                    "type": "unknown",
+                    "urn": "unknown:urn:li:mlFeature:(risk_features,ip_reputation_score)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            }
+        ],
+        "edges": [
+            {
+                "id": "e0:urn:li:mlFeature:(risk_features,transaction_velocity)->urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+                "source": "urn:li:mlFeature:(risk_features,transaction_velocity)",
+                "target": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e1:unknown:urn:li:mlFeature:(risk_features,transaction_velocity)->urn:li:mlFeature:(risk_features,transaction_velocity)",
+                "source": "unknown:urn:li:mlFeature:(risk_features,transaction_velocity)",
+                "target": "urn:li:mlFeature:(risk_features,transaction_velocity)",
+                "animated": false,
+                "style": {
+                    "stroke": "#f59e0b",
+                    "strokeWidth": 1.5,
+                    "strokeDasharray": "4 4"
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": true
+                }
+            },
+            {
+                "id": "e2:urn:li:mlFeature:(risk_features,ip_reputation_score)->urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+                "source": "urn:li:mlFeature:(risk_features,ip_reputation_score)",
+                "target": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e3:unknown:urn:li:mlFeature:(risk_features,ip_reputation_score)->urn:li:mlFeature:(risk_features,ip_reputation_score)",
+                "source": "unknown:urn:li:mlFeature:(risk_features,ip_reputation_score)",
+                "target": "urn:li:mlFeature:(risk_features,ip_reputation_score)",
+                "animated": false,
+                "style": {
+                    "stroke": "#f59e0b",
+                    "strokeWidth": 1.5,
+                    "strokeDasharray": "4 4"
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": true
+                }
+            }
+        ]
+    },
+    "write_back": [
+        {
+            "entity": "MLModel",
+            "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+            "aspect": "globalTags",
+            "operation": "UPSERT",
+            "status": "REQUESTED"
+        },
+        {
+            "entity": "MLModel",
+            "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,fraud_model_v3,PROD)",
+            "aspect": "institutionalMemory",
+            "operation": "UPSERT",
+            "status": "REQUESTED"
+        }
+    ],
+    "evidence_paths": [],
+    "execution_events": [
+        {
+            "stage": "Acquisition",
+            "step_num": 1,
+            "detail": "Read 2 features and 0 datasets from DataHub.",
+            "timestamp": "2026-08-09T09:18:47.659815+00:00"
+        },
+        {
+            "stage": "Normalization",
+            "step_num": 2,
+            "detail": "Normalized 5 nodes and 4 lineage edges.",
+            "timestamp": "2026-08-09T09:18:47.659829+00:00"
+        },
+        {
+            "stage": "Decision",
+            "step_num": 3,
+            "detail": "Blocked by INCOMPLETE_LINEAGE.",
+            "timestamp": "2026-08-09T09:18:47.659947+00:00"
+        }
+    ],
+    "evaluated_at": "2026-08-09T09:18:47.660052+00:00",
+    "evaluation_source": "live_datahub",
+    "remediation_available": false
+}

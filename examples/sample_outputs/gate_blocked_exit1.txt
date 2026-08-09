@@ -1,0 +1,41 @@
+::group::Underwrite Evaluation
+
+Underwrite ━━ Executable Metadata
+Evaluating deployment against DataHub graph...
+
+error: TARGET_LEAKAGE
+        Decision: BLOCKED
+          Policy: TARGET_LEAKAGE
+     DataHub Ref: urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)
+     DataHub URL: http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Craw_billing%2CPROD%29
+        Evidence: Feature urn:li:mlFeature:(customer_features,discount_history) derives from forbidden upstream urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount) (Tag: urn:li:tag:post_outcome)
+     Decision ID: UW-REQ-3E5A4DA9
+         Latency: 130ms
+     Next Action: Deployment terminated. Inspect DataHub graph for lineage violation.
+
+Remediation Advisor:
+  ================================================
+  
+  REMEDIATION ADVISOR
+  
+  This recommendation DID NOT participate in the deployment decision.
+  
+  The deployment was already blocked by the deterministic runtime.
+  
+  ================================================
+  
+  
+  **Deployment for urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD) blocked by ML-LEAK-001.**
+  
+  Review the evidence paths provided.
+  
+  Remove the upstream dependencies violating the policy.
+  
+  Evidence:
+  **Evidence 1**
+  - Path: urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD) -> urn:li:mlFeature:(customer_features,discount_history) -> urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD) -> urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD),discount_history) -> urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)
+  - Field: retention_discount
+
+::error title=Underwrite: TARGET_LEAKAGE::Deployment blocked. Feature urn:li:mlFeature:(customer_features,discount_history) derives from forbidden upstream urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount) (Tag: urn:li:tag:post_outcome)
+::endgroup::
+exit_code=1

@@ -1,6 +1,12 @@
 """Unit tests for writeback operations (100% offline, zero network calls)."""
 
-from datahub_client import DataHubWriteBackClient, process_verdict_writeback_event
+import datahub_client
+from datahub_client import (
+    DataHubWriteBackClient,
+    plan_writeback,
+    process_verdict_writeback_event,
+    writeback_target_entity,
+)
 import datahub.metadata.schema_classes as sc
 from metadata.aspects import build_documentation_mcp, build_tag_mcp
 from metadata.client import MockMetadataClient
@@ -106,6 +112,77 @@ def test_schema_field_tainted_urn_extracts_enclosing_dataset():
         "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)"
     )
     assert dataset_urn_from_maybe_schema_field(DATASET_TEST) == DATASET_TEST
+
+
+def _executed_operations(mock) -> set[tuple[str, str]]:
+    """The (aspect, urn) pairs the executor actually emitted."""
+    return (
+        {("globalTags", t["target_urn"]) for t in mock.emitted_tags}
+        | {("incidentInfo", i["dataset_urn"]) for i in mock.emitted_incidents}
+        | {("institutionalMemory", d["target_urn"]) for d in mock.emitted_docs}
+    )
+
+
+def _planned_operations(plan) -> set[tuple[str, str]]:
+    return {(op["aspect"], op["urn"]) for op in plan}
+
+
+def test_blocked_plan_matches_operations_the_executor_actually_runs(monkeypatch):
+    """The UI's write-back panel must not advertise operations that never run."""
+    monkeypatch.setattr(datahub_client, "_DEDUP_CACHE", set())
+    mock = MockMetadataClient()
+    field = f"urn:li:schemaField:({DATASET_TEST},customer_status)"
+    evidence = [{"tainted_urn": field}]
+
+    process_verdict_writeback_event(
+        {
+            "model_urn": MODEL_TEST,
+            "reason_code": "TARGET_LEAKAGE",
+            "verdict": "blocked",
+            "headline": "Target leakage detected",
+            "evidence_paths": evidence,
+        },
+        client=mock,
+    )
+
+    plan = plan_writeback("blocked", "TARGET_LEAKAGE", MODEL_TEST, evidence)
+    assert _planned_operations(plan) == _executed_operations(mock)
+
+
+def test_approved_plan_matches_operations_the_executor_actually_runs(monkeypatch):
+    monkeypatch.setattr(datahub_client, "_DEDUP_CACHE", set())
+    mock = MockMetadataClient()
+
+    process_verdict_writeback_event(
+        {
+            "model_urn": MODEL_TEST,
+            "reason_code": "CLEAN",
+            "verdict": "approved",
+            "headline": "Approved",
+        },
+        client=mock,
+    )
+
+    plan = plan_writeback("approved", "CLEAN", MODEL_TEST, [])
+    assert _planned_operations(plan) == _executed_operations(mock)
+
+
+def test_plan_reports_incident_against_parent_dataset_not_schema_field():
+    """The panel claimed a Dataset incident while showing a schemaField URN."""
+    field = f"urn:li:schemaField:({DATASET_TEST},customer_status)"
+
+    plan = plan_writeback("blocked", "TARGET_LEAKAGE", MODEL_TEST, [{"tainted_urn": field}])
+    incident = next(op for op in plan if op["aspect"] == "incidentInfo")
+
+    assert incident["urn"] == DATASET_TEST
+    assert incident["entity"] == "Dataset"
+
+
+def test_plan_omits_incident_when_no_evidence_entity_exists():
+    plan = plan_writeback("blocked", "INCOMPLETE_LINEAGE", MODEL_TEST, [])
+
+    assert writeback_target_entity([]) is None
+    assert all(op["aspect"] != "incidentInfo" for op in plan)
 
 
 def test_writeback_client_uses_explicit_gms_url(monkeypatch):

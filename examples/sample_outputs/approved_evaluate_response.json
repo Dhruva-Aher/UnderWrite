@@ -1,0 +1,321 @@
+{
+    "request": {
+        "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+        "environment": "PROD",
+        "action": "DEPLOY",
+        "requested_by": "urn:li:corpuser:underwrite-agent",
+        "request_id": "UW-REQ-31B4458A",
+        "gms_endpoint": "http://localhost:8080"
+    },
+    "evaluation": {
+        "verdict": "approved",
+        "reason_code": "CLEAN",
+        "headline": "Approved \u2014 full lineage resolved. No policy flags.",
+        "explanation": "All configured policies completed without a match on the acquired DataHub provenance graph.",
+        "latency_ms": 110,
+        "policies_evaluated": 3,
+        "denials": 0,
+        "warnings": 0,
+        "allowances": 0
+    },
+    "graph": {
+        "nodes": [
+            {
+                "id": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+                "position": {
+                    "x": 834,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "recommendation_model_v1",
+                    "type": "model",
+                    "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:mlFeature:(engagement_features,pages_viewed_7d)",
+                "position": {
+                    "x": 564,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "pages_viewed_7d",
+                    "type": "feature",
+                    "urn": "urn:li:mlFeature:(engagement_features,pages_viewed_7d)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:mlFeature:(engagement_features,avg_session_sec)",
+                "position": {
+                    "x": 564,
+                    "y": 104
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "avg_session_sec",
+                    "type": "feature",
+                    "urn": "urn:li:mlFeature:(engagement_features,avg_session_sec)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:mlFeature:(engagement_features,click_depth)",
+                "position": {
+                    "x": 564,
+                    "y": 184
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "click_depth",
+                    "type": "feature",
+                    "urn": "urn:li:mlFeature:(engagement_features,click_depth)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)",
+                "position": {
+                    "x": 294,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "stg_clicks",
+                    "type": "dataset",
+                    "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)",
+                    "description": "Staging clickstream metrics",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_clickstream,PROD)",
+                "position": {
+                    "x": 24,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "raw_clickstream",
+                    "type": "dataset",
+                    "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_clickstream,PROD)",
+                    "description": "User click events",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            }
+        ],
+        "edges": [
+            {
+                "id": "e0:urn:li:mlFeature:(engagement_features,pages_viewed_7d)->urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+                "source": "urn:li:mlFeature:(engagement_features,pages_viewed_7d)",
+                "target": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e1:urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)->urn:li:mlFeature:(engagement_features,pages_viewed_7d)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)",
+                "target": "urn:li:mlFeature:(engagement_features,pages_viewed_7d)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e2:urn:li:mlFeature:(engagement_features,avg_session_sec)->urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+                "source": "urn:li:mlFeature:(engagement_features,avg_session_sec)",
+                "target": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e3:urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)->urn:li:mlFeature:(engagement_features,avg_session_sec)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)",
+                "target": "urn:li:mlFeature:(engagement_features,avg_session_sec)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e4:urn:li:mlFeature:(engagement_features,click_depth)->urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+                "source": "urn:li:mlFeature:(engagement_features,click_depth)",
+                "target": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e5:urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)->urn:li:mlFeature:(engagement_features,click_depth)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)",
+                "target": "urn:li:mlFeature:(engagement_features,click_depth)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e6:urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_clickstream,PROD)->urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_clickstream,PROD)",
+                "target": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_clicks,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            }
+        ]
+    },
+    "write_back": [
+        {
+            "entity": "MLModel",
+            "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+            "aspect": "globalTags",
+            "operation": "UPSERT",
+            "status": "REQUESTED"
+        },
+        {
+            "entity": "MLModel",
+            "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,recommendation_model_v1,PROD)",
+            "aspect": "institutionalMemory",
+            "operation": "UPSERT",
+            "status": "REQUESTED"
+        }
+    ],
+    "evidence_paths": [],
+    "execution_events": [
+        {
+            "stage": "Acquisition",
+            "step_num": 1,
+            "detail": "Read 3 features and 2 datasets from DataHub.",
+            "timestamp": "2026-08-09T09:18:47.613196+00:00"
+        },
+        {
+            "stage": "Normalization",
+            "step_num": 2,
+            "detail": "Normalized 6 nodes and 7 lineage edges.",
+            "timestamp": "2026-08-09T09:18:47.613211+00:00"
+        },
+        {
+            "stage": "Decision",
+            "step_num": 3,
+            "detail": "Approved after all configured policies completed without a match.",
+            "timestamp": "2026-08-09T09:18:47.613240+00:00"
+        }
+    ],
+    "evaluated_at": "2026-08-09T09:18:47.613292+00:00",
+    "evaluation_source": "live_datahub",
+    "remediation_available": false
+}

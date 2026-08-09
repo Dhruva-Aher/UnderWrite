@@ -21,26 +21,52 @@ from config import settings
 from constants import ReasonCode, Verdict
 from exceptions import UnderwriteError, PolicyConfigurationError
 from metadata.client import DataHubClient
-from datahub_client import DataHubWriteBackClient, process_verdict_writeback_event, create_datahub_client
+from datahub_client import (
+    DataHubWriteBackClient,
+    process_verdict_writeback_event,
+    create_datahub_client,
+    plan_writeback,
+)
 from remediation.advisor import RemediationContext, generate, DISCLAIMER
 from collections import OrderedDict
 
 class DecisionStore:
+    """Bounded, insertion-ordered cache keyed by decision/request id."""
+
     def __init__(self, max_size: int = 256):
         self._items = OrderedDict()
         self._max_size = max_size
 
-    def put(self, decision_id: str, context: RemediationContext) -> None:
+    def put(self, decision_id: str, context) -> None:
         self._items[decision_id] = context
         self._items.move_to_end(decision_id)
 
         while len(self._items) > self._max_size:
             self._items.popitem(last=False)
 
-    def get(self, decision_id: str) -> RemediationContext | None:
+    def get(self, decision_id: str):
         return self._items.get(decision_id)
 
 decision_store = DecisionStore()
+writeback_status_store = DecisionStore()
+
+
+def run_writeback_and_record(request_id: str, payload: dict) -> None:
+    """Execute the write-back side effect and record its real outcome.
+
+    Runs after the response is sent, so the verdict never depends on it; the
+    recorded outcome is what /writeback/{request_id} reports back to the UI.
+    """
+    try:
+        result = process_verdict_writeback_event(payload, settings.gms_url)
+        writeback_status_store.put(
+            request_id, {"status": result.status, "message": result.message}
+        )
+    except Exception as e:  # a write-back failure must never surface as a verdict change
+        logger.warning("Write-back task failed for %s: %s", request_id, e)
+        writeback_status_store.put(
+            request_id, {"status": "FAILED", "message": str(e)}
+        )
 
 logger = logging.getLogger("underwrite.server")
 
@@ -74,7 +100,10 @@ class EvaluateRequest(BaseModel):
     model_urn: str = Field(..., description="Canonical DataHub ML Model URN")
     environment: str = Field(default="PROD", description="Target environment for the deployment")
     action: str = Field(default="DEPLOY", description="Requested authorization action")
-    requested_by: str = Field(default="urn:li:corpuser:unknown", description="Principal requesting the action")
+    requested_by: str = Field(
+        default="urn:li:corpuser:underwrite-agent",
+        description="Principal requesting the action",
+    )
 
     @field_validator("model_urn")
     @classmethod
@@ -116,6 +145,33 @@ def _display_label(node) -> str:
     return node.name
 
 
+# ReactFlow renders whatever `style` the server attaches, so the leak path is
+# highlighted here rather than duplicating evidence logic in the browser.
+NODE_STYLE_BASE = {
+    "background": "#1e293b",
+    "color": "#e2e8f0",
+    "border": "1px solid #334155",
+    "borderRadius": "6px",
+    "fontSize": "10px",
+    "fontFamily": "ui-monospace, monospace",
+    "width": 230,
+    "padding": "6px 8px",
+}
+NODE_STYLE_LEAK = {
+    **NODE_STYLE_BASE,
+    "background": "#450a0a",
+    "color": "#fecaca",
+    "border": "2px solid #ef4444",
+    "boxShadow": "0 0 0 3px rgba(239,68,68,0.18)",
+}
+NODE_STYLE_BROKEN = {
+    **NODE_STYLE_BASE,
+    "background": "#1c1917",
+    "color": "#fcd34d",
+    "border": "1px dashed #f59e0b",
+}
+
+
 def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
     """Serialize the graph acquired for this evaluation for the UI."""
     type_map = {
@@ -142,12 +198,21 @@ def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
         depth = depths.get(urn, max(depths.values(), default=0) + 1)
         row = rows.get(depth, 0)
         rows[depth] = row + 1
+        is_leak = urn in evidence_nodes
+        is_broken = urn.startswith("unknown:")
         nodes.append({
             "id": urn,
             "position": {
-                "x": 24 + (max(depths.values(), default=0) - depth) * 190,
-                "y": 24 + row * 72,
+                "x": 24 + (max(depths.values(), default=0) - depth) * 270,
+                "y": 24 + row * 80,
             },
+            "style": (
+                NODE_STYLE_LEAK
+                if is_leak
+                else NODE_STYLE_BROKEN
+                if is_broken
+                else NODE_STYLE_BASE
+            ),
             "data": {
                 "label": _display_label(node),
                 "type": type_map.get(node.type, "unknown"),
@@ -155,7 +220,7 @@ def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
                 "description": node.description,
                 "tags": sorted(node.tags),
                 "glossaryTerms": sorted(node.glossary_terms),
-                "isLeakNode": urn in evidence_nodes,
+                "isLeakNode": is_leak,
             },
         })
     # Arrows render in data-flow order (upstream producer -> downstream consumer),
@@ -163,13 +228,23 @@ def graph_to_ui_payload(graph: InternalGraph, verdict: VerdictInternal) -> dict:
     # layout that places the model at the largest x.
     edges = []
     for index, edge in enumerate(graph.edges):
+        is_leak = edge.source_urn in evidence_nodes and edge.target_urn in evidence_nodes
+        is_broken = edge.target_urn.startswith("unknown:")
+        if is_leak:
+            style = {"stroke": "#ef4444", "strokeWidth": 2}
+        elif is_broken:
+            style = {"stroke": "#f59e0b", "strokeWidth": 1.5, "strokeDasharray": "4 4"}
+        else:
+            style = {"stroke": "#475569", "strokeWidth": 1}
         edges.append({
             "id": f"e{index}:{edge.target_urn}->{edge.source_urn}",
             "source": edge.target_urn,
             "target": edge.source_urn,
+            "animated": is_leak,
+            "style": style,
             "data": {
-                "isLeak": edge.source_urn in evidence_nodes and edge.target_urn in evidence_nodes,
-                "isBroken": edge.target_urn.startswith("unknown:"),
+                "isLeak": is_leak,
+                "isBroken": is_broken,
             },
         })
     return {"nodes": nodes, "edges": edges}
@@ -182,25 +257,22 @@ def format_verdict_response(
     if verdict_obj.reason_code == "TARGET_LEAKAGE":
         headline = "Blocked — trained on data it shouldn’t have seen."
         explanation = "Target leakage detected in the acquired DataHub provenance graph."
-        write_back = [
-            {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"},
-            {"entity": "Dataset", "urn": getattr(verdict_obj.evidence_paths[0], "tainted_urn", "unknown") if verdict_obj.evidence_paths else "unknown", "aspect": "incidents", "operation": "CREATE", "status": "REQUESTED"}
-        ]
     elif verdict_obj.reason_code == "INCOMPLETE_LINEAGE":
         headline = "Blocked — insufficient lineage to approve."
         explanation = "The acquired DataHub provenance graph is incomplete; approval is denied."
-        write_back = [
-            {"entity": "MLModel", "urn": request.model_urn, "aspect": "globalTags", "operation": "UPSERT", "status": "REQUESTED"},
-            {"entity": "MLModel", "urn": request.model_urn, "aspect": "incidents", "operation": "CREATE", "status": "REQUESTED"}
-        ]
     elif verdict_obj.verdict == Verdict.APPROVED:
         headline = "Approved — full lineage resolved. No policy flags."
         explanation = "All configured policies completed without a match on the acquired DataHub provenance graph."
-        write_back = {"status": "REQUESTED"}
     else:
         headline = "Blocked — a configured policy was violated."
         explanation = "A configured DataHub governance policy matched the acquired provenance graph."
-        write_back = {"status": "REQUESTED"}
+
+    write_back = plan_writeback(
+        verdict_obj.verdict,
+        verdict_obj.reason_code,
+        request.model_urn,
+        verdict_obj.evidence_paths,
+    )
 
     evidence_paths_serialized = [
         (
@@ -328,7 +400,7 @@ async def evaluate_model_route(
 
     if response_payload["evaluation_source"] == "live_datahub":
         background_tasks.add_task(
-            process_verdict_writeback_event, response_payload, settings.gms_url
+            run_writeback_and_record, request_id, response_payload
         )
         
     if response_payload["evaluation"]["verdict"] == Verdict.BLOCKED:
@@ -345,6 +417,19 @@ async def evaluate_model_route(
         decision_store.put(request_id, context)
         
     return response_payload
+
+
+@app.get("/writeback/{request_id}")
+async def writeback_status_route(request_id: str):
+    """Report the real outcome of the background write-back for an evaluation."""
+    record = writeback_status_store.get(request_id)
+    if record is None:
+        return {
+            "request_id": request_id,
+            "status": "PENDING",
+            "message": "Write-back has not completed yet.",
+        }
+    return {"request_id": request_id, **record}
 
 
 @app.post("/remediation/{decision_id}")

@@ -82,6 +82,95 @@ def normalize_writeback_payload(verdict_data: dict) -> dict:
     }
 
 
+def writeback_target_entity(evidence_paths) -> str | None:
+    """Resolve the entity an incident will be raised against.
+
+    Evidence points at a schemaField, but incidents attach to its parent dataset.
+    """
+    if not evidence_paths:
+        return None
+    ep0 = evidence_paths[0]
+    if isinstance(ep0, dict):
+        target = ep0.get("tainted_urn")
+    else:
+        target = getattr(ep0, "tainted_urn", None)
+    if isinstance(target, str) and target.startswith("urn:li:schemaField:("):
+        return dataset_urn_from_maybe_schema_field(target)
+    return target
+
+
+def _entity_kind(urn: str) -> str:
+    if urn.startswith("urn:li:mlModel:"):
+        return "MLModel"
+    if urn.startswith("urn:li:dataset:"):
+        return "Dataset"
+    if urn.startswith("urn:li:schemaField:"):
+        return "SchemaField"
+    return "Entity"
+
+
+def plan_writeback(verdict, reason_code: str, model_urn: str, evidence_paths) -> list[dict]:
+    """The write-back operations process_verdict_writeback_event will attempt.
+
+    Kept alongside the executor so the UI's write-back panel cannot advertise
+    operations that never actually run.
+    """
+    if hasattr(verdict, "value"):
+        verdict = verdict.value
+
+    if verdict == "blocked":
+        plan = [
+            {
+                "entity": "MLModel",
+                "urn": model_urn,
+                "aspect": "globalTags",
+                "operation": "UPSERT",
+                "status": "REQUESTED",
+            }
+        ]
+        target = writeback_target_entity(evidence_paths)
+        if target:
+            plan.append(
+                {
+                    "entity": _entity_kind(target),
+                    "urn": target,
+                    "aspect": "incidentInfo",
+                    "operation": "CREATE",
+                    "status": "REQUESTED",
+                }
+            )
+        plan.append(
+            {
+                "entity": "MLModel",
+                "urn": model_urn,
+                "aspect": "institutionalMemory",
+                "operation": "UPSERT",
+                "status": "REQUESTED",
+            }
+        )
+        return plan
+
+    if verdict == "approved":
+        return [
+            {
+                "entity": "MLModel",
+                "urn": model_urn,
+                "aspect": "globalTags",
+                "operation": "UPSERT",
+                "status": "REQUESTED",
+            },
+            {
+                "entity": "MLModel",
+                "urn": model_urn,
+                "aspect": "institutionalMemory",
+                "operation": "UPSERT",
+                "status": "REQUESTED",
+            },
+        ]
+
+    return []
+
+
 def process_verdict_writeback_event(
     verdict_data: dict,
     gms_url: str | None = None,
@@ -105,7 +194,10 @@ def process_verdict_writeback_event(
             model_urn,
             reason_code,
         )
-        return WritebackResult(status="SKIPPED", message="Duplicate write-back event")
+        return WritebackResult(
+            status="SKIPPED",
+            message="Identical verdict already written to DataHub; skipped as idempotent.",
+        )
     wb_client = DataHubWriteBackClient(gms_url=gms_url, client=client)
 
     def attempt(operation) -> bool:
@@ -123,16 +215,7 @@ def process_verdict_writeback_event(
             ]
 
             evidence_paths = verdict_data.get("evidence_paths", [])
-            target_ds = None
-            if evidence_paths:
-                ep0 = evidence_paths[0]
-                if isinstance(ep0, dict):
-                    target_ds = ep0.get("tainted_urn")
-                elif hasattr(ep0, "tainted_urn"):
-                    target_ds = ep0.tainted_urn
-
-            if isinstance(target_ds, str) and target_ds.startswith("urn:li:schemaField:("):
-                target_ds = dataset_urn_from_maybe_schema_field(target_ds)
+            target_ds = writeback_target_entity(evidence_paths)
 
             desc = verdict_data.get(
                 "headline", "Underwrite evaluation blocked model deployment."

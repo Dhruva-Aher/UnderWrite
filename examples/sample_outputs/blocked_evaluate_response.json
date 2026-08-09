@@ -1,40 +1,502 @@
 {
-  "request": {
-    "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
-    "environment": "PROD",
-    "action": "DEPLOY",
-    "requested_by": "urn:li:corpuser:unknown",
-    "request_id": "UW-REQ-VERIFIED",
-    "gms_endpoint": "http://localhost:8080"
-  },
-  "evaluation": {
-    "verdict": "blocked",
-    "reason_code": "TARGET_LEAKAGE",
-    "headline": "Blocked — trained on data it shouldn’t have seen.",
-    "explanation": "Target leakage detected in the acquired DataHub provenance graph.",
-    "policies_evaluated": 1,
-    "denials": 1,
-    "warnings": 0,
-    "allowances": 0
-  },
-  "evaluation_source": "live_datahub",
-  "evidence_paths": [
-    {
-      "policy_id": "ML-LEAK-001",
-      "feature_urn": "urn:li:mlFeature:(customer_features,discount_history)",
-      "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
-      "tag_found": "urn:li:tag:post_outcome",
-      "field_name": "retention_discount",
-      "path": [
-        "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
-        "urn:li:mlFeature:(customer_features,discount_history)",
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
-        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)"
-      ],
-      "rationale": "Serving feature derives from a column tagged urn:li:tag:post_outcome through a non-anonymizing transform. Policy denies promotion."
-    }
-  ],
-  "remediation_available": true,
-  "_capture_note": "Live-shaped POST /evaluate blocked payload aligned with seed.py / freeze-grand-prize-ready. Distinct from the offline synthetic fixture. Prefer replaying against live GMS for judging."
+    "request": {
+        "model_urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+        "environment": "PROD",
+        "action": "DEPLOY",
+        "requested_by": "urn:li:corpuser:underwrite-agent",
+        "request_id": "UW-REQ-E357A1DC",
+        "gms_endpoint": "http://localhost:8080"
+    },
+    "evaluation": {
+        "verdict": "blocked",
+        "reason_code": "TARGET_LEAKAGE",
+        "headline": "Blocked \u2014 trained on data it shouldn\u2019t have seen.",
+        "explanation": "Target leakage detected in the acquired DataHub provenance graph.",
+        "latency_ms": 245,
+        "policies_evaluated": 1,
+        "denials": 1,
+        "warnings": 0,
+        "allowances": 0
+    },
+    "graph": {
+        "nodes": [
+            {
+                "id": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                "position": {
+                    "x": 1104,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#450a0a",
+                    "color": "#fecaca",
+                    "border": "2px solid #ef4444",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px",
+                    "boxShadow": "0 0 0 3px rgba(239,68,68,0.18)"
+                },
+                "data": {
+                    "label": "churn_model_v2",
+                    "type": "model",
+                    "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": true
+                }
+            },
+            {
+                "id": "urn:li:mlFeature:(customer_features,tenure_months)",
+                "position": {
+                    "x": 834,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "tenure_months",
+                    "type": "feature",
+                    "urn": "urn:li:mlFeature:(customer_features,tenure_months)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:mlFeature:(customer_features,login_frequency)",
+                "position": {
+                    "x": 834,
+                    "y": 104
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "login_frequency",
+                    "type": "feature",
+                    "urn": "urn:li:mlFeature:(customer_features,login_frequency)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:mlFeature:(customer_features,discount_history)",
+                "position": {
+                    "x": 834,
+                    "y": 184
+                },
+                "style": {
+                    "background": "#450a0a",
+                    "color": "#fecaca",
+                    "border": "2px solid #ef4444",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px",
+                    "boxShadow": "0 0 0 3px rgba(239,68,68,0.18)"
+                },
+                "data": {
+                    "label": "discount_history",
+                    "type": "feature",
+                    "urn": "urn:li:mlFeature:(customer_features,discount_history)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": true
+                }
+            },
+            {
+                "id": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_customers,PROD)",
+                "position": {
+                    "x": 564,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "stg_customers",
+                    "type": "dataset",
+                    "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_customers,PROD)",
+                    "description": "Staging customer table",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_customers,PROD)",
+                "position": {
+                    "x": 294,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "raw_customers",
+                    "type": "dataset",
+                    "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_customers,PROD)",
+                    "description": "Raw customer accounts",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            },
+            {
+                "id": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+                "position": {
+                    "x": 564,
+                    "y": 104
+                },
+                "style": {
+                    "background": "#450a0a",
+                    "color": "#fecaca",
+                    "border": "2px solid #ef4444",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px",
+                    "boxShadow": "0 0 0 3px rgba(239,68,68,0.18)"
+                },
+                "data": {
+                    "label": "stg_billing",
+                    "type": "dataset",
+                    "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+                    "description": "Staging billing table",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": true
+                }
+            },
+            {
+                "id": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
+                "position": {
+                    "x": 24,
+                    "y": 24
+                },
+                "style": {
+                    "background": "#450a0a",
+                    "color": "#fecaca",
+                    "border": "2px solid #ef4444",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px",
+                    "boxShadow": "0 0 0 3px rgba(239,68,68,0.18)"
+                },
+                "data": {
+                    "label": "raw_billing.retention_discount",
+                    "type": "schema_field",
+                    "urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
+                    "description": "",
+                    "tags": [
+                        "urn:li:tag:post_outcome"
+                    ],
+                    "glossaryTerms": [],
+                    "isLeakNode": true
+                }
+            },
+            {
+                "id": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD),discount_history)",
+                "position": {
+                    "x": 294,
+                    "y": 104
+                },
+                "style": {
+                    "background": "#450a0a",
+                    "color": "#fecaca",
+                    "border": "2px solid #ef4444",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px",
+                    "boxShadow": "0 0 0 3px rgba(239,68,68,0.18)"
+                },
+                "data": {
+                    "label": "stg_billing.discount_history",
+                    "type": "schema_field",
+                    "urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD),discount_history)",
+                    "description": "",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": true
+                }
+            },
+            {
+                "id": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
+                "position": {
+                    "x": 294,
+                    "y": 184
+                },
+                "style": {
+                    "background": "#1e293b",
+                    "color": "#e2e8f0",
+                    "border": "1px solid #334155",
+                    "borderRadius": "6px",
+                    "fontSize": "10px",
+                    "fontFamily": "ui-monospace, monospace",
+                    "width": 230,
+                    "padding": "6px 8px"
+                },
+                "data": {
+                    "label": "raw_billing",
+                    "type": "dataset",
+                    "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
+                    "description": "Customer billing and retention discount history",
+                    "tags": [],
+                    "glossaryTerms": [],
+                    "isLeakNode": false
+                }
+            }
+        ],
+        "edges": [
+            {
+                "id": "e0:urn:li:mlFeature:(customer_features,tenure_months)->urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                "source": "urn:li:mlFeature:(customer_features,tenure_months)",
+                "target": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e1:urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_customers,PROD)->urn:li:mlFeature:(customer_features,tenure_months)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_customers,PROD)",
+                "target": "urn:li:mlFeature:(customer_features,tenure_months)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e2:urn:li:mlFeature:(customer_features,login_frequency)->urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                "source": "urn:li:mlFeature:(customer_features,login_frequency)",
+                "target": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e3:urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_customers,PROD)->urn:li:mlFeature:(customer_features,login_frequency)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_customers,PROD)",
+                "target": "urn:li:mlFeature:(customer_features,login_frequency)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e4:urn:li:mlFeature:(customer_features,discount_history)->urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                "source": "urn:li:mlFeature:(customer_features,discount_history)",
+                "target": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                "animated": true,
+                "style": {
+                    "stroke": "#ef4444",
+                    "strokeWidth": 2
+                },
+                "data": {
+                    "isLeak": true,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e5:urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)->urn:li:mlFeature:(customer_features,discount_history)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+                "target": "urn:li:mlFeature:(customer_features,discount_history)",
+                "animated": true,
+                "style": {
+                    "stroke": "#ef4444",
+                    "strokeWidth": 2
+                },
+                "data": {
+                    "isLeak": true,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e6:urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_customers,PROD)->urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_customers,PROD)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_customers,PROD)",
+                "target": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_customers,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e7:urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)->urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+                "source": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
+                "target": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+                "animated": false,
+                "style": {
+                    "stroke": "#475569",
+                    "strokeWidth": 1
+                },
+                "data": {
+                    "isLeak": false,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e8:urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD),discount_history)->urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+                "source": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD),discount_history)",
+                "target": "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+                "animated": true,
+                "style": {
+                    "stroke": "#ef4444",
+                    "strokeWidth": 2
+                },
+                "data": {
+                    "isLeak": true,
+                    "isBroken": false
+                }
+            },
+            {
+                "id": "e9:urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)->urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD),discount_history)",
+                "source": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
+                "target": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD),discount_history)",
+                "animated": true,
+                "style": {
+                    "stroke": "#ef4444",
+                    "strokeWidth": 2
+                },
+                "data": {
+                    "isLeak": true,
+                    "isBroken": false
+                }
+            }
+        ]
+    },
+    "write_back": [
+        {
+            "entity": "MLModel",
+            "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+            "aspect": "globalTags",
+            "operation": "UPSERT",
+            "status": "REQUESTED"
+        },
+        {
+            "entity": "Dataset",
+            "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD)",
+            "aspect": "incidentInfo",
+            "operation": "CREATE",
+            "status": "REQUESTED"
+        },
+        {
+            "entity": "MLModel",
+            "urn": "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+            "aspect": "institutionalMemory",
+            "operation": "UPSERT",
+            "status": "REQUESTED"
+        }
+    ],
+    "evidence_paths": [
+        {
+            "id": "ev-01",
+            "feature_urn": "urn:li:mlFeature:(customer_features,discount_history)",
+            "tainted_urn": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)",
+            "tag_found": "urn:li:tag:post_outcome",
+            "path": [
+                "urn:li:mlModel:(urn:li:dataPlatform:mlflow,churn_model_v2,PROD)",
+                "urn:li:mlFeature:(customer_features,discount_history)",
+                "urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD)",
+                "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,stg_billing,PROD),discount_history)",
+                "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,raw_billing,PROD),retention_discount)"
+            ],
+            "policy_id": "ML-LEAK-001",
+            "field_name": "retention_discount",
+            "verdict": "BLOCKED",
+            "transform": "UNKNOWN",
+            "confidence": "1.0",
+            "aspectPath": "UpstreamLineage.fineGrainedLineages[0]",
+            "rationale": "Serving feature derives from a column tagged urn:li:tag:post_outcome through a non-anonymizing transform. Policy denies promotion."
+        }
+    ],
+    "execution_events": [
+        {
+            "stage": "Acquisition",
+            "step_num": 1,
+            "detail": "Read 3 features and 4 datasets from DataHub.",
+            "timestamp": "2026-08-09T09:18:47.486919+00:00"
+        },
+        {
+            "stage": "Normalization",
+            "step_num": 2,
+            "detail": "Normalized 10 nodes and 10 lineage edges.",
+            "timestamp": "2026-08-09T09:18:47.486938+00:00"
+        },
+        {
+            "stage": "Decision",
+            "step_num": 3,
+            "detail": "Blocked by TARGET_LEAKAGE.",
+            "timestamp": "2026-08-09T09:18:47.487012+00:00"
+        }
+    ],
+    "evaluated_at": "2026-08-09T09:18:47.487309+00:00",
+    "evaluation_source": "live_datahub",
+    "remediation_available": true
 }

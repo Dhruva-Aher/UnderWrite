@@ -1,0 +1,13 @@
+::group::Underwrite Evaluation
+
+Underwrite ━━ Executable Metadata
+Evaluating deployment against DataHub graph...
+
+success: CLEAN
+          Policy: All deterministic checks passed
+        Decision: APPROVED
+     Decision ID: UW-REQ-BDB43549
+         Latency: 98ms
+     Next Action: Proceed with deployment
+::endgroup::
+exit_code=0

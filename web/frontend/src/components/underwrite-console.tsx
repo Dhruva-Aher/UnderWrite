@@ -220,10 +220,18 @@ function HonestBanner() {
 /* ---------- 02 decision ---------- */
 
 
-function DecisionBanner({ evaluated, EVAL, WRITEBACK }: { evaluated: boolean; EVAL: any; WRITEBACK: any[] }) {
+function DecisionBanner({
+  evaluated,
+  EVAL,
+  WRITEBACK,
+  evidenceCount,
+}: {
+  evaluated: boolean;
+  EVAL: any;
+  WRITEBACK: any[];
+  evidenceCount: number;
+}) {
   const denies = EVAL.denials ?? 0;
-  const warns = EVAL.warnings ?? 0;
-  const allows = EVAL.allowances ?? 0;
   const writebackAspects = Array.from(new Set((WRITEBACK || []).map((w: any) => w.aspect).filter(Boolean)));
   const verdict = String(EVAL.verdict || "").toUpperCase();
   const isBlocked = verdict === "BLOCKED";
@@ -256,8 +264,7 @@ function DecisionBanner({ evaluated, EVAL, WRITEBACK }: { evaluated: boolean; EV
         <div className="mt-5 flex gap-px bg-border">
           {[
             { k: "denials", v: denies, tone: "text-blocked" },
-            { k: "warnings", v: warns, tone: "text-warning" },
-            { k: "allowances", v: allows, tone: "text-approved" },
+            { k: "evidence paths", v: evidenceCount, tone: "text-warning" },
             { k: "writeback ops", v: (WRITEBACK || []).length, tone: "text-metadata" },
           ].map((c) => (
             <div key={c.k} className="bg-surface px-5 py-2 text-center">
@@ -501,6 +508,8 @@ function DataTable({ columns, children }: { columns: string[]; children: React.R
 
 /* ---------- page ---------- */
 
+const PRINCIPAL = "urn:li:corpuser:underwrite-ui";
+
 export function UnderwriteConsole() {
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [rawUrns, setRawUrns] = useState(false);
@@ -509,6 +518,7 @@ export function UnderwriteConsole() {
   );
   const [payload, setPayload] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [writebackStatus, setWritebackStatus] = useState<{ status: string; message: string } | null>(null);
 
   const evaluated = state === "done" && !!payload;
   const evalSource = payload?.evaluation_source || (state === "idle" ? "not_evaluated" : "unavailable");
@@ -516,7 +526,7 @@ export function UnderwriteConsole() {
     model_urn: modelUrn,
     environment: "PROD",
     action: "DEPLOY",
-    requested_by: "urn:li:corpuser:underwrite-ui",
+    requested_by: PRINCIPAL,
     request_id: "—",
     gms_endpoint: "—",
   };
@@ -551,14 +561,32 @@ export function UnderwriteConsole() {
       : [];
   const events = payload?.execution_events || [];
 
+  // Write-back is a background side effect, so its real outcome is only known
+  // after the verdict has already been returned.
+  const pollWriteback = async (requestId: string) => {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise((r) => setTimeout(r, 600));
+      try {
+        const res = await fetch(`/writeback/${requestId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setWritebackStatus({ status: data.status, message: data.message });
+        if (data.status !== "PENDING") return;
+      } catch {
+        return;
+      }
+    }
+  };
+
   const evaluate = async () => {
     setState("running");
     setError(null);
+    setWritebackStatus(null);
     try {
       const res = await fetch("/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model_urn: modelUrn }),
+        body: JSON.stringify({ model_urn: modelUrn, requested_by: PRINCIPAL }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -566,6 +594,9 @@ export function UnderwriteConsole() {
       }
       setPayload(data);
       setState("done");
+      if (data?.request?.request_id && data?.evaluation_source === "live_datahub") {
+        void pollWriteback(data.request.request_id);
+      }
     } catch (e: any) {
       setPayload(null);
       setError(e?.message || "Evaluation failed");
@@ -608,7 +639,12 @@ export function UnderwriteConsole() {
         </Section>
 
         <Section index="02" title="Trust Decision" meta="deterministic fail-closed reducer">
-          <DecisionBanner evaluated={evaluated} EVAL={evalBlock} WRITEBACK={writeback} />
+          <DecisionBanner
+            evaluated={evaluated}
+            EVAL={evalBlock}
+            WRITEBACK={writeback}
+            evidenceCount={evidence.length}
+          />
         </Section>
 
         <Section index="03" title="Verification Evidence" meta="from /evaluate evidence_paths">
@@ -636,18 +672,75 @@ export function UnderwriteConsole() {
             </div>
           ) : (
             <div className="bg-surface px-4 py-6 font-mono text-[12px] text-muted-foreground">
-              No evidence yet. Evaluate against a live DataHub-backed API (GMS healthy) to populate this panel.
+              {!evaluated
+                ? "No evidence yet. Evaluate against a live DataHub-backed API (GMS healthy) to populate this panel."
+                : String(evalBlock.verdict || "").toLowerCase() === "approved"
+                  ? `No policy violated. ${evalBlock.policies_evaluated ?? 0} policies were evaluated against the full lineage graph and none matched — an approval is the absence of evidence, not the absence of a check.`
+                  : "Blocked without an evidence path. This is the fail-closed default: the graph could not be proven safe, so no approval is issued."}
             </div>
           )}
         </Section>
 
         <Section index="04" title="Lineage Graph" meta="serialized from evaluation graph">
           <div className="bg-[#0f172a] p-4 text-[11px] leading-[1.6]">
+            <div className="mb-2 flex flex-wrap gap-4 font-mono text-[11px] text-[#94a3b8]">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 border-[#ef4444] bg-[#450a0a]" />
+                on evidence path
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm border border-dashed border-[#f59e0b] bg-[#1c1917]" />
+                unresolved upstream
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm border border-[#334155] bg-[#1e293b]" />
+                clean
+              </span>
+            </div>
             <GraphVisualizer nodes={payload?.graph?.nodes || []} edges={payload?.graph?.edges || []} />
           </div>
         </Section>
 
-        <Section index="05" title="Trust Trace" meta="deterministic · replayable">
+        <Section index="05" title="DataHub Write-Back" meta="side effect · never gates the verdict">
+          <div className="bg-surface px-4 py-3">
+            <div className="font-mono text-[11px] text-muted-foreground">
+              status{" "}
+              <span
+                className={
+                  writebackStatus?.status === "SUCCESS" || writebackStatus?.status === "SKIPPED"
+                    ? "text-approved"
+                    : writebackStatus?.status === "PENDING" || !writebackStatus
+                      ? "text-muted-foreground"
+                      : "text-warning"
+                }
+              >
+                {evaluated ? writebackStatus?.status || "PENDING" : "—"}
+              </span>
+              {writebackStatus?.message ? (
+                <span className="text-muted-foreground"> · {writebackStatus.message}</span>
+              ) : null}
+            </div>
+            {writeback.length ? (
+              <ul className="mt-2 divide-y divide-border font-mono text-[11px]">
+                {writeback.map((w: any, i: number) => (
+                  <li key={`${w.aspect}-${i}`} className="grid grid-cols-[90px_140px_minmax(0,1fr)] gap-3 py-1.5">
+                    <span className="text-metadata">{w.operation}</span>
+                    <span className="text-foreground">{w.aspect}</span>
+                    <span className="break-all text-muted-foreground">
+                      <UrnRef value={w.urn} showEntity={false} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+                No write-back operations planned for this decision.
+              </p>
+            )}
+          </div>
+        </Section>
+
+        <Section index="06" title="Trust Trace" meta="deterministic · replayable">
           <ol className="divide-y divide-border">
             {events.length ? (
               events.map((e: any, idx: number) => (
