@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     policy_path: str = "policies.yaml"
     max_lineage_depth: int = 6
     datahub_token: str | None = None
-    # Overrides are a privileged exception to a blocked decision.  Keep them
-    # disabled unless an operator explicitly provisions a secret.
+    # Token for /override audit writes (records a named statement in DataHub;
+    # does not change the verdict or gate). Keep disabled unless provisioned.
     override_token: str | None = None
 
     # LLM Settings

@@ -69,8 +69,10 @@ caller used by CI/CD. It exits successfully only when `/evaluate` returns both
 `verdict: approved` and `evaluation_source: live_datahub`. This makes the
 deployment boundary executable rather than a documentation convention.
 
-`/override` is disabled unless `UNDERWRITE_OVERRIDE_TOKEN` is configured, and
-requires that value in the `X-Underwrite-Override-Token` header.
+`/override` records a token-authenticated override statement in DataHub for audit
+purposes. It does not alter the evaluation verdict, decision store, or deployment
+gate exit code. The endpoint is disabled unless `UNDERWRITE_OVERRIDE_TOKEN` is
+configured, and requires that value in the `X-Underwrite-Override-Token` header.
 
 ---
 
@@ -85,7 +87,7 @@ Configuration settings are loaded automatically from environment variables (pref
 | `UNDERWRITE_PORT` | `8000` | Application server port |
 | `UNDERWRITE_LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `UNDERWRITE_POLICY_PATH` | `policies.yaml` | YAML policy definitions filepath |
-| `UNDERWRITE_OVERRIDE_TOKEN` | unset (disabled) | Required secret for privileged override writes |
+| `UNDERWRITE_OVERRIDE_TOKEN` | unset (disabled) | Required secret for `/override` audit writes |
 
 ---
 

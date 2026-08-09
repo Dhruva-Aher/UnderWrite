@@ -108,7 +108,7 @@ will refuse to approve on it. Prefer the live path above for judging.
 | `POST /evaluate` | Acquire lineage, evaluate policies, return the verdict and its evidence |
 | `GET /writeback/{request_id}` | Real outcome of the background DataHub write-back for that evaluation |
 | `POST /remediation/{decision_id}` | LLM remediation advice for a blocked decision — advisory only |
-| `POST /override` | Record a signed human override; requires `UNDERWRITE_OVERRIDE_TOKEN` |
+| `POST /override` | Record a token-authenticated override statement in DataHub; requires `UNDERWRITE_OVERRIDE_TOKEN` |
 | `GET /health` | Reports whether GMS is reachable |
 
 Write-back is a pure side effect. It runs after the response is sent and can fail
@@ -126,7 +126,7 @@ Set in `.env` or the environment.
 | `UNDERWRITE_DATAHUB_TOKEN` | — | Personal access token, if GMS requires auth |
 | `UNDERWRITE_MAX_LINEAGE_DEPTH` | `6` | Traversal depth bound |
 | `UNDERWRITE_POLICY_PATH` | `policies.yaml` | Policy definitions |
-| `UNDERWRITE_OVERRIDE_TOKEN` | — | Enables `/override`; overrides are disabled without it |
+| `UNDERWRITE_OVERRIDE_TOKEN` | — | Enables `/override` audit writes; endpoint is disabled without it |
 | `UNDERWRITE_DATAHUB_UI_URL` | `http://localhost:9002` | Used by the gate to print browsable entity links |
 | `UNDERWRITE_REQUESTED_BY` | CI actor, else `ci-deployment-gate` | Principal recorded in the audit trail |
 
@@ -198,8 +198,10 @@ Every deployment is blocked. There is no cached approval path, because an approv
 issued without evidence is indistinguishable from one that was never checked.
 
 **Can someone bypass a block?**  
-Only through `/override`, which requires a preconfigured token and records a named
-signer. It is disabled entirely unless `UNDERWRITE_OVERRIDE_TOKEN` is set.
+Not through Underwrite's deployment gate. `/override` records a token-authenticated,
+named human override statement in DataHub for audit purposes; it does not change the
+deterministic verdict or make the gate exit 0. It is disabled entirely unless
+`UNDERWRITE_OVERRIDE_TOKEN` is set.
 
 ---
 

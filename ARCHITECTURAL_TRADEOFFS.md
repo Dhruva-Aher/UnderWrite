@@ -35,9 +35,9 @@ This document outlines the deliberate architectural tradeoffs made in Underwrite
 - **Production evolution path**: Implement a configurable strictness mode allowing evaluation to fall back to coarse-grained lineage, accompanied by UI warnings about potential false positives.
 
 ## 5. Static Override Token
-- **Decision**: Bypassing a blocked deployment requires providing a static override token via an HTTP header.
-- **Why it was chosen**: Allows a simple, stateless mechanism to demonstrate how emergency bypasses generate incident audit logs.
-- **Alternative considered**: Authenticating the override request against DataHub's native Role-Based Access Control (RBAC).
-- **Why the alternative was rejected**: Requires configuring complex DataHub Access Policies and Personal Access Tokens (PATs), complicating the local deployment for judges.
-- **Hackathon rationale**: Demonstrates the governance capability (auditable overrides) without friction during the demo setup.
-- **Production evolution path**: Authenticate override requests using DataHub PATs and evaluate permissions against native DataHub Access Policies.
+- **Decision**: `/override` records a named human override statement in DataHub when a static token is supplied via HTTP header. It does not alter the deterministic verdict or deployment-gate exit code.
+- **Why it was chosen**: Allows a simple, stateless mechanism to demonstrate auditable human acknowledgment without expanding authorization surface area.
+- **Alternative considered**: Authenticating the override request against DataHub's native Role-Based Access Control (RBAC), or making `/override` change the gate verdict.
+- **Why the alternative was rejected**: Full RBAC requires complex DataHub Access Policies and PATs that complicate local judging. Changing the gate verdict would expand security-sensitive authorization behavior beyond what this demo needs.
+- **Hackathon rationale**: Demonstrates auditable override statements without friction during demo setup, while keeping the deployment gate fail-closed and independent.
+- **Production evolution path**: Authenticate override requests using DataHub PATs, evaluate permissions against native DataHub Access Policies, and (if required) implement a separate, explicitly authorized bypass path that the gate consults.
