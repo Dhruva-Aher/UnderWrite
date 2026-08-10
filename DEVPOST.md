@@ -57,3 +57,15 @@ Full beat sheet: [`docs/DEMO_SCREENPLAY.md`](docs/DEMO_SCREENPLAY.md).
 ## Sample outputs (no GMS required to inspect)
 
 See [`examples/sample_outputs/`](examples/sample_outputs/) for a captured live-shaped `POST /evaluate` blocked payload (`evaluation_source=live_datahub`, evidence to `raw_billing.retention_discount`) and a gate exit excerpt. These are **not** the offline fixture.
+
+## Open-source contribution (DataHub)
+
+UnderWrite is itself Apache 2.0. Beyond the project, the workflow is being upstreamed into the DataHub ecosystem:
+
+| Contribution | Link |
+| --- | --- |
+| **Skills proposal** — `datahub-ml-leakage` | [datahub-skills#136](https://github.com/datahub-project/datahub-skills/issues/136) |
+| **Skills PR** — full `SKILL.md` + routing + templates | [datahub-skills#137](https://github.com/datahub-project/datahub-skills/pull/137) |
+| **Core API issue** — batch `schemaField` tag/term fetch for FineGrainedLineage policy walks | [datahub#19060](https://github.com/datahub-project/datahub/issues/19060) |
+
+The skill encodes the same invariants as this service: deterministic traversal, fail-closed incomplete lineage, LLM never authorizes, write-backs as approval-gated side effects. Agent Context Kit is used for remediation only (`include_mutations=False`).

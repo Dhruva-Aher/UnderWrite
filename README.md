@@ -234,6 +234,18 @@ by piping live responses to disk; see the README there.
 
 ---
 
+## Upstream DataHub contributions
+
+The workflow is being upstreamed so agents and platforms can reuse it without vendoring this service:
+
+| Contribution | Link |
+| --- | --- |
+| Skills proposal — `datahub-ml-leakage` | [datahub-skills#136](https://github.com/datahub-project/datahub-skills/issues/136) |
+| Skills PR — `SKILL.md`, routing, evidence template | [datahub-skills#137](https://github.com/datahub-project/datahub-skills/pull/137) |
+| Core API — batch `schemaField` tags/terms for FineGrainedLineage policy walks | [datahub#19060](https://github.com/datahub-project/datahub/issues/19060) |
+
+---
+
 ## FAQ
 
 **Is the product target leakage detection?**  
