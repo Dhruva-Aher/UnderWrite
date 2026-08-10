@@ -8,7 +8,7 @@ We needed to decide whether policy enforcement (lineage graph traversal and rule
 ## Decision Drivers
 1. **Zero Hallucination Tolerance**: Deployment gates cannot tolerate non-deterministic false approvals caused by LLM hallucination or context window truncation.
 2. **Auditability & Reproducibility**: Every governance verdict must be 100% reproducible given the exact same DataHub graph state.
-3. **Execution Latency**: CI/CD deployment gates require sub-second evaluation latencies. Graph traversal over multi-hop column lineage must complete in under 50ms.
+3. **Execution Latency**: CI/CD deployment gates must not become a bottleneck in the pipeline. Traversal runs in-memory over an already-acquired subgraph so that evaluation cost is dominated by metadata acquisition, not by policy logic.
 4. **DataHub Lineage Structure**: DataHub provides structured `FineGrainedLineage` aspects through its Python SDK, which form a directed graph suitable for standard graph search algorithms.
 
 ## Considered Options

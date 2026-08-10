@@ -15,7 +15,7 @@ Live GMS only. Never show the offline fixture.
 ### **0:00–0:25 | Cold open — inert graph → agent walks it**
 **Show (silent first):** DataHub lineage for `churn_model_v2` — the graph sitting there, inert. Pan/zoom toward the multi-hop path ending at `retention_discount` / `post_outcome`.  
 **Then narrate over the same UI as write-back lands:** tag `model-at-risk` + named incident appearing.  
-**Say:** "This lineage already lived in DataHub. The agent walks the graph on its own, finds the tainted column six hops upstream, decides to block the deploy, and writes the verdict back."  
+**Say:** "This lineage already lived in DataHub. The agent walks the graph on its own, finds the tainted column several transformations upstream, decides to block the deploy, and writes the verdict back."  
 **Optional beat (≤3s):** Cut to terminal only long enough to flash `GATE_EXIT=1` / `evaluation_source=live_datahub` — confirmation, not the open.
 
 ### **0:25–0:40 | Why InternalGraph (once — trust, not theater)**

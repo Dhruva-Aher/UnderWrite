@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Underwrite** is an automated AI governance and lineage inspection platform designed to prevent untrusted or leaky ML models from reaching production. It inspects DataHub metadata graphs, evaluates policy rules, and records audit verdicts as non-blocking side effects.
+**Underwrite** is a metadata-backed deployment authorization boundary for CI. It acquires DataHub lineage as evidence, evaluates deterministic policy rules against it, returns an authorization verdict, and records that verdict back to DataHub as a non-blocking side effect.
 
 ---
 
@@ -58,13 +58,13 @@ When `/evaluate` receives a request:
 3. DataHub metadata mutation requests (`write_verdict_tag`, `write_incident`, `write_documentation`) are scheduled as non-blocking `BackgroundTasks`.
 
 DataHub metadata mutation requests are scheduled only when `evaluation_source` is `live_datahub`.
-Bundled cached fixtures are deliberately excluded: a fixture must never mutate
+Offline fixture evaluations are deliberately excluded: a fixture must never mutate
 an enterprise metadata catalog.
 
 ## 4. Deployment Enforcement Boundary
 
 The service returns a governance decision; the bundled
-[`scripts/deployment_gate.py`](scripts/deployment_gate.py) is the fail-closed
+[`scripts/deployment_gate.py`](../scripts/deployment_gate.py) is the fail-closed
 caller used by CI/CD. It exits successfully only when `/evaluate` returns both
 `verdict: approved` and `evaluation_source: live_datahub`. This makes the
 deployment boundary executable rather than a documentation convention.

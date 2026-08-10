@@ -3,16 +3,13 @@
 Ensures zero demo failures:
 1. Refuses to start when the configured server port is already occupied.
 2. Checks DataHub GMS status.
-3. Verifies cache fixtures (cache/verdicts.json).
-4. Runs unit test suite (`pytest tests/unit`).
-5. Boots FastAPI application using config settings.
+3. Runs unit test suite (`pytest tests/unit`).
+4. Boots FastAPI application using config settings.
 """
 
 import logging
-import os
 import subprocess
 import sys
-import time
 
 import httpx
 
@@ -46,17 +43,6 @@ def check_port_available(port: int = settings.port) -> bool:
     except (subprocess.SubprocessError, OSError) as e:
         logger.warning("Port check warning: %s", e)
         return False
-
-
-def verify_cache_fixtures() -> None:
-    """Verify Layer 0 offline cache fixture file."""
-    logger.info("Verifying cache fixtures...")
-    cache_path = os.path.join(os.path.dirname(__file__), "cache", "verdicts.json")
-    if os.path.exists(cache_path):
-        logger.info("Layer 0 fixture found (%s)", cache_path)
-    else:
-        logger.error("CRITICAL: cache/verdicts.json missing!")
-        sys.exit(1)
 
 
 def check_datahub_gms() -> bool:
@@ -122,7 +108,6 @@ def main():
     print("==================================================")
     if not check_port_available(settings.port):
         sys.exit(1)
-    verify_cache_fixtures()
     check_datahub_gms()
     run_tests()
     launch_server()

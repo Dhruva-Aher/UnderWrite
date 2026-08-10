@@ -36,7 +36,7 @@ While many tools treat governance as simple string-matching, DataHub provides ro
 - **GlobalTags**: Ad-hoc, flexible labels (e.g., `post_outcome`, `is_target`).
 - **GlossaryTerms**: Strongly typed, hierarchical, centrally managed business vocabulary (e.g., `urn:li:glossaryTerm:PostOutcome`).
 
-**Underwrite demonstrates seamlessly merging** both into its internal graph, enabling organizations to enforce policies using centrally managed Glossary Terms while preserving developer agility with Tags.
+Underwrite normalizes both into its internal graph and surfaces them on every evaluated node. The demonstrated policy evaluates GlobalTags; GlossaryTerms are acquired and displayed as evidence context, and are the natural next predicate for the same traversal.
 
 ---
 

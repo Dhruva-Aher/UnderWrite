@@ -35,9 +35,8 @@ def test_remediation_rejects_caller_authored_evidence():
     }
     
     response = client.post("/remediation/dummy-id", json=payload)
-    # The endpoint should not accept a body, and the dummy-id isn't in the store
-    # Wait, FastAPI might accept a body and ignore it if the endpoint doesn't define it.
-    # But it will definitely return 404 because dummy-id is not in decision_store
+    # Evidence is read from the server-side decision store, never from the request
+    # body, so a caller-authored payload cannot manufacture a remediation context.
     assert response.status_code == 404
     assert response.json()["detail"] == "Decision not found or evidence expired"
 

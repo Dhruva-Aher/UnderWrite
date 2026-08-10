@@ -12,6 +12,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DataHub Context Platform Integration**: SDK aspect acquisition and REST-emitter write-backs (`datahub_client.py`).
 - **Multi-Policy Framework**: Extensible `PolicyEvaluator` supporting `ML-LEAK-001` (Target Leakage), `ML-TEMPORAL-001`, and `ML-FAIL-CLOSED` rules.
 - **Async Telemetry Write-Back**: Non-blocking emissions of `GlobalTags`, `IncidentInfo`, and `InstitutionalMemory` to DataHub GMS.
-- **Evidence-First UI & Replay Stepper**: Web application interface featuring step-by-step algorithm replay, lineage graph renderer, and node inspector drawer (`static/`).
-- **Layer 0 Offline Fallback**: Embedded fixtures allowing offline presentation without live DataHub Docker dependency.
+- **Evidence-First UI & Replay Stepper**: Web application interface featuring step-by-step algorithm replay, lineage graph renderer, and node inspector drawer (`web/static/`).
 - **Master Verification Test Runner**: Automated test suite (`test_full_suite.py`) covering unit tests, fail-closed policy checks, and fallback fixtures.
