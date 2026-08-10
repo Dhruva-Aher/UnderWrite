@@ -57,12 +57,14 @@ By the time the feature reaches the model, the dangerous relationship is invisib
 
 **Prerequisite:** a running [DataHub Quickstart](https://docs.datahub.com/docs/quickstart) with GMS at `http://localhost:8080` (or set `UNDERWRITE_GMS_URL`). Without GMS, use the Fastest / Offline paths above — do not expect an approval.
 
+Local Quickstart has **no SSO** and no shared login for judges. The DataHub UI at `http://localhost:9002` is open once containers are healthy. Leave `UNDERWRITE_DATAHUB_TOKEN` empty unless your GMS requires a personal access token. Do not point this demo at a corporate/cloud DataHub that needs SSO — judges will not have your credentials.
+
 Validated on **Python 3.13** (the version used for the live demo pin).
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # set UNDERWRITE_GMS_URL / token if needed
+cp .env.example .env   # local Quickstart: leave DATAHUB_TOKEN blank
 
 python seed.py         # ingest the demo lineage into GMS
 python preflight.py    # starts the API once GMS is healthy
