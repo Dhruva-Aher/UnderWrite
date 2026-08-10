@@ -19,7 +19,7 @@ logger = logging.getLogger("underwrite.writeback")
 
 # In-memory deduplication cache: (model_urn, reason_code, request_id)
 # request_id scopes retries within one evaluation; a new evaluation can write again.
-_DEDUP_CACHE: set[tuple[str, str]] = set()
+_DEDUP_CACHE: set[tuple[str, str, str]] = set()
 MAX_WRITE_ATTEMPTS = 3
 
 TAG_MODEL_AT_RISK_URN = make_tag_urn("model-at-risk")
