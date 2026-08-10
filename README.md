@@ -1,6 +1,6 @@
 # Underwrite
 
-> **DataHub already knows how your data is connected. Underwrite makes that knowledge enforceable.**
+> **DataHub knows where your ML features came from. Underwrite makes CI act on that knowledge.**
 
 **Verified pin for judges:** tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/tree/freeze-grand-prize-ready) (prefer the tag over drifting `main`). Real captured responses, no DataHub required to read them: [`examples/sample_outputs/`](examples/sample_outputs/).
 
@@ -8,9 +8,17 @@
 git clone --branch freeze-grand-prize-ready https://github.com/Dhruva-Aher/UnderWrite.git
 ```
 
-An ML feature can look safe in code. DataHub shows that three transformations upstream it derives from post-outcome data. Underwrite discovers that lineage and fails CI before the corrupted model deploys.
+**Target leakage is the demonstration. Metadata-backed deployment authorization is the product.**
 
-**Underwrite is an ML deployment agent with a deterministic authorization boundary.** It gathers DataHub context, traces provenance, evaluates deployment policy, blocks CI when evidence fails, writes the decision back into DataHub, then uses Agent Context Kit for contextual remediation. The LLM is deliberately prohibited from overriding evidence.
+An ML feature can look safe in code. DataHub already holds the multi-hop path to post-outcome data. Underwrite turns that provenance into a CI decision — then writes the outcome back into DataHub.
+
+```text
+Observe → Reason → Act → Remember → Assist
+DataHub   Trace +   Block    Write to    ACK remediation
+context   policy    deploy   DataHub     (after a block)
+```
+
+The LLM never authorizes. Authorization is deterministic and fail-closed over live DataHub evidence.
 
 ### How to evaluate (pick one)
 
@@ -39,7 +47,7 @@ raw outcome column
    ML model
 ```
 
-By the time the feature reaches the model, the dangerous relationship is invisible to code review. **Underwrite turns DataHub lineage into a CI authorization boundary** — not a report.
+Code review sees a benign feature name. DataHub knows the poisoned ancestor. Underwrite is the authorization boundary between them.
 
 | | Ordinary CI | Underwrite |
 | :--- | :---: | :---: |
@@ -49,7 +57,7 @@ By the time the feature reaches the model, the dangerous relationship is invisib
 | Blocks unsafe ML deploy (non-zero exit) | ✗ | **✓** |
 | Writes incidents back to DataHub | ✗ | **✓** |
 
-**DataHub provides the evidence. Underwrite decides. CI enforces.** AI explains remediation after a block — the LLM cannot decide whether deployment succeeds.
+**DataHub provides the evidence. Underwrite decides. CI enforces.**
 
 ---
 
@@ -183,22 +191,28 @@ request-scoped write-back deduplication.
 
 ---
 
-## Architecture (five stages)
+## Architecture
 
-**Acquisition → Normalization → Traversal → Evaluation → Verdict**
+```text
+             UNDERWRITE
 
-Underwrite is the deployment agent; the policy gate inside it is deliberately non-LLM so authorization stays deterministic and fail-closed.
-
-```mermaid
-flowchart LR
-    Deploy[Deploy request] --> Agent[Underwrite agent]
-    Agent --> DH[(DataHub lineage + tags)]
-    DH --> Gate[Deterministic policy gate]
-    Gate -->|violation| Block[CI exit ≠ 0]
-    Gate -->|clean + live| Pass[CI exit 0]
-    Block --> WB[DataHub writeback]
-    Block --> AI[ACK remediation advice]
+Deployment ──────► Agent
+                    │
+                    ▼
+                 DataHub
+              lineage + tags
+                    │
+                    ▼
+              Policy Boundary
+                /        \
+             BLOCK      APPROVE
+               │
+               ▼
+            DataHub
+           write-back
 ```
+
+Acquisition → Normalization → Traversal → Evaluation → Verdict. The policy gate is non-LLM; Agent Context Kit advises only after a block.
 
 Full design notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · algorithm: [`docs/algorithm.md`](docs/algorithm.md)
 
@@ -228,21 +242,17 @@ by piping live responses to disk; see the README there.
 
 ## FAQ
 
-**Is this just a leakage detector?**  
-No. Target leakage is the demonstrated policy. The product is an **ML deployment agent** whose authorization boundary is deterministic: DataHub provides the evidence; Underwrite decides; CI enforces.
+**Is the product target leakage detection?**  
+Target leakage is the demonstrated policy. The product is metadata-backed deployment authorization: DataHub provides the evidence; Underwrite decides; CI enforces.
 
-**Why not ask an LLM whether the model looks dangerous?**  
-Authorization must be deterministic and fail-closed. AI runs only after a block, read-only via Agent Context Kit.
+**Where is the agent?**  
+Observe (DataHub context) → Reason (trace + policy) → Act (block deploy) → Remember (write-back) → Assist (ACK remediation). The LLM is reserved for Assist; it cannot override the verdict.
 
 **What happens if DataHub is down?**  
-Every deployment is blocked. There is no cached approval path, because an approval
-issued without evidence is indistinguishable from one that was never checked.
+Every deployment is blocked. Exit 0 requires `verdict == approved` *and* `evaluation_source == live_datahub`.
 
 **Can someone bypass a block?**  
-Not through Underwrite's deployment gate. `/override` records a token-authenticated,
-named human override statement in DataHub for audit purposes; it does not change the
-deterministic verdict or make the gate exit 0. It is disabled entirely unless
-`UNDERWRITE_OVERRIDE_TOKEN` is set.
+Not through the deployment gate. `/override` records a token-authenticated override statement in DataHub for audit; it does not change the verdict or make the gate exit 0. Disabled unless `UNDERWRITE_OVERRIDE_TOKEN` is set.
 
 ---
 
