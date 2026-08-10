@@ -2,7 +2,7 @@
 
 **Headline**: Underwrite turns DataHub lineage into a CI authorization boundary for ML deployments.
 
-**Elevator Pitch**: An ML feature can look safe in code while three transformations upstream it derives from post-outcome data. Underwrite traverses DataHub's column lineage, deterministically fails the deployment, and only then uses AI to explain remediation.
+**Elevator Pitch**: DataHub already knows how data is connected. Underwrite makes that knowledge enforceable in CI — deterministic deployment authorization from lineage, not an AI decision.
 
 **Verified release pin (judge checkout):** tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/tree/freeze-grand-prize-ready). Prefer this tag over drifting `main` so you land on the exact state that passed live GMS verification (blocked `TARGET_LEAKAGE`, writeback SUCCESS, deployment gate exit 1, console renders the lineage graph).
 
@@ -14,16 +14,18 @@ If forbidden data (like a future outcome) leaks into training features, the mode
 
 You cannot solve this by looking at dashboards. **You solve it by breaking the build.**
 
-## The Solution: Metadata as Executable Infrastructure
+## The Solution: An ML deployment agent with a deterministic boundary
 
-Underwrite converts DataHub's context graph into a deployment decision:
+Underwrite is an ML deployment agent that converts DataHub's context graph into a deployment decision:
 
 ```text
 SAFE   → deployment continues (exit 0)
 UNSAFE → deployment terminates (exit non-zero)
 ```
 
-**Target leakage is the concrete policy demonstrated.** The core abstraction is metadata-backed deployment policy enforcement: DataHub evidence authorizes; AI never decides.
+It autonomously gathers DataHub context, traces provenance, evaluates deployment policy, takes action by blocking CI, writes the decision back into DataHub, then uses Agent Context Kit for contextual remediation. **The LLM is deliberately prohibited from overriding evidence.** Determinism is mature agent design — not evidence that this is "just a linter."
+
+**Target leakage is the concrete policy demonstrated.** The core abstraction is metadata-backed deployment authorization: DataHub provides the evidence; Underwrite decides; CI enforces.
 
 ### Phase 1 — Deterministic Enforcement (Safety)
 

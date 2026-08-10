@@ -17,7 +17,8 @@ from pydantic import BaseModel
 
 logger = logging.getLogger("underwrite.writeback")
 
-# In-memory deduplication cache: (model_urn, reason_code)
+# In-memory deduplication cache: (model_urn, reason_code, request_id)
+# request_id scopes retries within one evaluation; a new evaluation can write again.
 _DEDUP_CACHE: set[tuple[str, str]] = set()
 MAX_WRITE_ATTEMPTS = 3
 
@@ -79,6 +80,7 @@ def normalize_writeback_payload(verdict_data: dict) -> dict:
         "verdict": verdict_data.get("verdict") or evaluation.get("verdict"),
         "evidence_paths": verdict_data.get("evidence_paths", []),
         "headline": verdict_data.get("headline") or evaluation.get("headline"),
+        "request_id": verdict_data.get("request_id") or request.get("request_id"),
     }
 
 
@@ -187,12 +189,16 @@ def process_verdict_writeback_event(
     if not model_urn or not reason_code:
         return WritebackResult(status="SKIPPED", message="Missing required verdict data")
 
-    cache_key = (model_urn, reason_code)
+    # Dedup per evaluation request, not for the lifetime of (model, reason).
+    # A later reintroduction of the same policy violation must still write back.
+    request_id = verdict_data.get("request_id")
+    cache_key = (model_urn, reason_code, request_id or "")
     if cache_key in _DEDUP_CACHE:
         logger.info(
-            "Skipping duplicate write-back event for model %s (rule %s)",
+            "Skipping duplicate write-back event for model %s (rule %s, request %s)",
             model_urn,
             reason_code,
+            request_id or "-",
         )
         return WritebackResult(
             status="SKIPPED",

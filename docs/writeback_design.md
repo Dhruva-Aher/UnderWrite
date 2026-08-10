@@ -38,7 +38,9 @@ POST /evaluate
    - Incident: a stable hash of dataset URN, model URN, and reason code
    - Documentation: `institutionalMemory` aspect on model URN
 2. **Session Deduplication**:
-   - `datahub_client.py` maintains an in-memory `dedup_cache: Set[Tuple[str, str]]` tracking `(model_urn, reason_code)`.
+   - `datahub_client.py` maintains an in-memory `dedup_cache` keyed by
+     `(model_urn, reason_code, request_id)`. Retries of the same evaluation are
+     skipped; a later evaluation with a new `request_id` still writes.
    - Subsequent identical evaluations within the server lifetime skip redundant write-backs.
 3. **Independent operations**:
    - Step 1: `write_tag()`

@@ -185,7 +185,49 @@ def test_plan_omits_incident_when_no_evidence_entity_exists():
     assert all(op["aspect"] != "incidentInfo" for op in plan)
 
 
-def test_writeback_client_uses_explicit_gms_url(monkeypatch):
+def test_writeback_dedup_is_scoped_to_request_id(monkeypatch):
+    """Same model/reason on a new evaluation must still write; same request is skipped."""
+    monkeypatch.setattr(datahub_client, "_DEDUP_CACHE", set())
+    mock = MockMetadataClient()
+    base = {
+        "model_urn": MODEL_TEST,
+        "reason_code": "TARGET_LEAKAGE",
+        "verdict": "blocked",
+        "headline": "Target leakage detected",
+        "evidence_paths": [{"tainted_urn": DATASET_TEST}],
+    }
+
+    first = process_verdict_writeback_event(
+        {**base, "request": {"request_id": "UW-REQ-AAAA"}}, client=mock
+    )
+    second_same = process_verdict_writeback_event(
+        {**base, "request": {"request_id": "UW-REQ-AAAA"}}, client=mock
+    )
+    third_new = process_verdict_writeback_event(
+        {**base, "request": {"request_id": "UW-REQ-BBBB"}}, client=mock
+    )
+
+    assert first.status == "SUCCESS"
+    assert second_same.status == "SKIPPED"
+    assert third_new.status == "SUCCESS"
+    assert len(mock.emitted_tags) == 2
+    assert len(mock.emitted_incidents) == 2
+
+
+def test_writeback_without_request_id_still_dedups_identical_payloads(monkeypatch):
+    monkeypatch.setattr(datahub_client, "_DEDUP_CACHE", set())
+    mock = MockMetadataClient()
+    payload = {
+        "model_urn": MODEL_TEST,
+        "reason_code": "TARGET_LEAKAGE",
+        "verdict": "blocked",
+        "headline": "Target leakage detected",
+        "evidence_paths": [{"tainted_urn": DATASET_TEST}],
+    }
+
+    assert process_verdict_writeback_event(payload, client=mock).status == "SUCCESS"
+    assert process_verdict_writeback_event(payload, client=mock).status == "SKIPPED"
+
     """DataHubWriteBackClient(gms_url=...) must construct against that URL."""
     created = {}
 

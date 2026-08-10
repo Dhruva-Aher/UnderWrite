@@ -10,6 +10,16 @@ git clone --branch freeze-grand-prize-ready https://github.com/Dhruva-Aher/Under
 
 An ML feature can look safe in code. DataHub shows that three transformations upstream it derives from post-outcome data. Underwrite discovers that lineage and fails CI before the corrupted model deploys.
 
+**Underwrite is an ML deployment agent with a deterministic authorization boundary.** It gathers DataHub context, traces provenance, evaluates deployment policy, blocks CI when evidence fails, writes the decision back into DataHub, then uses Agent Context Kit for contextual remediation. The LLM is deliberately prohibited from overriding evidence.
+
+### How to evaluate (pick one)
+
+| Path | Time | Needs DataHub? | What you get |
+| --- | ---: | :---: | --- |
+| **Fastest** — open [`examples/sample_outputs/`](examples/sample_outputs/) + screenshots below | ~30s | No | Real captured live `POST /evaluate` + gate exit codes |
+| **Offline sanity** — `python demo/run_demo.py --offline` | ~1 min | No | Same policy engine; **cannot** produce a CI approval |
+| **Full reproduction** — Quick Start below (DataHub Quickstart + seed) | ~15–30 min | Yes | Live GMS evidence, gate exit codes, catalog write-back |
+
 The capture below is real, against a seeded DataHub quickstart: one deterministic verdict, the lineage evidence that caused it, and the write-back that recorded it.
 
 ![Blocked decision in the Underwrite console](docs/screenshots/01-blocked-decision.png)
@@ -39,13 +49,15 @@ By the time the feature reaches the model, the dangerous relationship is invisib
 | Blocks unsafe ML deploy (non-zero exit) | ✗ | **✓** |
 | Writes incidents back to DataHub | ✗ | **✓** |
 
-**DataHub evidence determines authorization. AI explains remediation.** The LLM cannot decide whether deployment succeeds.
+**DataHub provides the evidence. Underwrite decides. CI enforces.** AI explains remediation after a block — the LLM cannot decide whether deployment succeeds.
 
 ---
 
-## Quick Start (live DataHub — the path judges should run)
+## Quick Start (live DataHub — full reproduction)
 
-Requires DataHub GMS (default `http://localhost:8080`). Python 3.13 recommended.
+**Prerequisite:** a running [DataHub Quickstart](https://docs.datahub.com/docs/quickstart) with GMS at `http://localhost:8080` (or set `UNDERWRITE_GMS_URL`). Without GMS, use the Fastest / Offline paths above — do not expect an approval.
+
+Validated on **Python 3.13** (the version used for the live demo pin).
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -160,11 +172,11 @@ Set in `.env` or the environment.
 pytest
 ```
 
-68 tests: 65 run with no network, and 3 live-GMS integration tests skip unless
-DataHub is reachable. They cover the fail-closed boundaries (a blocked
-verdict cannot be rendered as approved, the gate cannot exit 0 on a non-live
-source), URN handling, and a check that the write-back operations advertised in
-the UI are exactly the ones the executor performs.
+69 tests after this pin's suite: network-independent unit/invariant coverage, plus
+3 live-GMS integration tests that skip unless DataHub is reachable. They cover the
+fail-closed boundaries (a blocked verdict cannot be rendered as approved, the gate
+cannot exit 0 on a non-live source), URN handling, write-back plan/executor parity,
+and request-scoped write-back deduplication.
 
 ---
 
@@ -172,14 +184,17 @@ the UI are exactly the ones the executor performs.
 
 **Acquisition → Normalization → Traversal → Evaluation → Verdict**
 
+Underwrite is the deployment agent; the policy gate inside it is deliberately non-LLM so authorization stays deterministic and fail-closed.
+
 ```mermaid
 flowchart LR
-    Deploy[Deploy request] --> DH[(DataHub FineGrainedLineage)]
+    Deploy[Deploy request] --> Agent[Underwrite agent]
+    Agent --> DH[(DataHub lineage + tags)]
     DH --> Gate[Deterministic policy gate]
     Gate -->|violation| Block[CI exit ≠ 0]
     Gate -->|clean + live| Pass[CI exit 0]
-    Block --> AI[AI remediation advice]
-    Block --> WB[DataHub incident writeback]
+    Block --> WB[DataHub writeback]
+    Block --> AI[ACK remediation advice]
 ```
 
 Full design notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · algorithm: [`docs/algorithm.md`](docs/algorithm.md)
@@ -211,7 +226,7 @@ by piping live responses to disk; see the README there.
 ## FAQ
 
 **Is this just a leakage detector?**  
-No. Target leakage is the demonstrated policy. The product is **metadata-backed deployment policy enforcement** — DataHub decides; CI enforces.
+No. Target leakage is the demonstrated policy. The product is an **ML deployment agent** whose authorization boundary is deterministic: DataHub provides the evidence; Underwrite decides; CI enforces.
 
 **Why not ask an LLM whether the model looks dangerous?**  
 Authorization must be deterministic and fail-closed. AI runs only after a block, read-only via Agent Context Kit.
