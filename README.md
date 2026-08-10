@@ -191,28 +191,22 @@ request-scoped write-back deduplication.
 
 ---
 
-## Architecture
+## Architecture (five stages)
 
-```text
-             UNDERWRITE
+**Acquisition → Normalization → Traversal → Evaluation → Verdict**
 
-Deployment ──────► Agent
-                    │
-                    ▼
-                 DataHub
-              lineage + tags
-                    │
-                    ▼
-              Policy Boundary
-                /        \
-             BLOCK      APPROVE
-               │
-               ▼
-            DataHub
-           write-back
+Underwrite is the deployment agent; the policy gate inside it is deliberately non-LLM so authorization stays deterministic and fail-closed.
+
+```mermaid
+flowchart LR
+    Deploy[Deploy request] --> Agent[Underwrite agent]
+    Agent --> DH[(DataHub lineage + tags)]
+    DH --> Gate[Deterministic policy gate]
+    Gate -->|violation| Block[CI exit ≠ 0]
+    Gate -->|clean + live| Pass[CI exit 0]
+    Block --> WB[DataHub writeback]
+    Block --> AI[ACK remediation advice]
 ```
-
-Acquisition → Normalization → Traversal → Evaluation → Verdict. The policy gate is non-LLM; Agent Context Kit advises only after a block.
 
 Full design notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · algorithm: [`docs/algorithm.md`](docs/algorithm.md)
 
