@@ -172,11 +172,12 @@ Set in `.env` or the environment.
 pytest
 ```
 
-69 tests after this pin's suite: network-independent unit/invariant coverage, plus
-3 live-GMS integration tests that skip unless DataHub is reachable. They cover the
-fail-closed boundaries (a blocked verdict cannot be rendered as approved, the gate
-cannot exit 0 on a non-live source), URN handling, write-back plan/executor parity,
-and request-scoped write-back deduplication.
+70 tests, verified with `pytest` from a clean `python3.13 -m venv` install of this
+pinned `requirements.txt`: 67 run with no network, and 3 live-GMS integration tests
+skip at collection unless DataHub is reachable. They cover the fail-closed
+boundaries (a blocked verdict cannot be rendered as approved, the gate cannot exit 0
+on a non-live source), URN handling, write-back plan/executor parity, and
+request-scoped write-back deduplication.
 
 ---
 

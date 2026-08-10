@@ -228,6 +228,8 @@ def test_writeback_without_request_id_still_dedups_identical_payloads(monkeypatc
     assert process_verdict_writeback_event(payload, client=mock).status == "SUCCESS"
     assert process_verdict_writeback_event(payload, client=mock).status == "SKIPPED"
 
+
+def test_writeback_client_uses_explicit_gms_url(monkeypatch):
     """DataHubWriteBackClient(gms_url=...) must construct against that URL."""
     created = {}
 
