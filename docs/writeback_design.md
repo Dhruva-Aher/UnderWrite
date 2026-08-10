@@ -5,7 +5,7 @@
 
 ---
 
-## 1. Architectural Flow (Event-Driven Side Effect)
+## 1. Architectural Flow (Asynchronous Side Effect)
 
 ```
 POST /evaluate

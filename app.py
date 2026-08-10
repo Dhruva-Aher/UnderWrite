@@ -1,8 +1,8 @@
 """Underwrite — FastAPI Application Server (app.py)
 
-Event-Driven Architecture:
-- POST /evaluate returns HTTP 200 OK immediately to client.
-- Schedules process_verdict_writeback_event as a non-blocking BackgroundTask.
+Request / response with asynchronous side effects:
+- POST /evaluate returns the verdict in the HTTP response.
+- Schedules process_verdict_writeback_event as a FastAPI BackgroundTask after the response.
 - Enforces Invariant 4: Verdict generation and UI rendering NEVER depend on write-back.
 """
 
