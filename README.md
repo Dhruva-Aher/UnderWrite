@@ -277,3 +277,12 @@ Not through the deployment gate. `/override` records a token-authenticated overr
 ## License
 
 Apache 2.0
+
+---
+
+## For interview depth
+
+| Doc | Use |
+|-----|-----|
+| [docs/METRICS.md](docs/METRICS.md) | Claim ↔ evidence (cross-verified 2026-09-30) |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Context → Decision → Why → Evidence |
