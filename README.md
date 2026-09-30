@@ -1,8 +1,19 @@
 # Underwrite
 
+**Fail-closed ML deploy gate** · ML infra / agents · TypeScript · DataHub · CI
+
+DataHub already knows where features came from. Underwrite makes CI **act** on that provenance — deterministic block, governance write-back. The LLM never authorizes.
+
+| | |
+|--|--|
+| **Focus** | Lineage → policy → block → write-back |
+| **Stack** | TypeScript · DataHub · CI gate · console |
+| **Pin** | Prefer tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/tree/freeze-grand-prize-ready) over drifting `main` |
+| **Proof** | [`examples/sample_outputs/`](examples/sample_outputs/) · [`docs/screenshots/`](docs/screenshots/) |
+
 > **DataHub knows where your ML features came from. Underwrite makes CI act on that knowledge.**
 
-**Verified pin for judges:** tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/tree/freeze-grand-prize-ready) (prefer the tag over drifting `main`). Real captured responses, no DataHub required to read them: [`examples/sample_outputs/`](examples/sample_outputs/).
+**Verified pin for judges:** tag above. Real captured responses, no DataHub required to read them: [`examples/sample_outputs/`](examples/sample_outputs/).
 
 ```bash
 git clone --branch freeze-grand-prize-ready https://github.com/Dhruva-Aher/UnderWrite.git
