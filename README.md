@@ -4,12 +4,14 @@
 
 DataHub already knows where features came from. Underwrite makes CI **act** on that provenance — deterministic block, governance write-back. The LLM never authorizes.
 
+[![CI](https://github.com/Dhruva-Aher/UnderWrite/actions/workflows/ci.yml/badge.svg)](https://github.com/Dhruva-Aher/UnderWrite/actions/workflows/ci.yml)
+
 | | |
 |--|--|
 | **Focus** | Lineage → policy → block → write-back |
 | **Stack** | TypeScript · DataHub · CI gate · console |
 | **Pin** | Prefer tag [`freeze-grand-prize-ready`](https://github.com/Dhruva-Aher/UnderWrite/tree/freeze-grand-prize-ready) over drifting `main` |
-| **Proof** | [`examples/sample_outputs/`](examples/sample_outputs/) · [`docs/screenshots/`](docs/screenshots/) |
+| **Proof** | [`examples/sample_outputs/`](examples/sample_outputs/) · [`docs/screenshots/`](docs/screenshots/) · unit CI |
 
 > **DataHub knows where your ML features came from. Underwrite makes CI act on that knowledge.**
 
