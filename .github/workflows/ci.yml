@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit tests + offline demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Unit tests (no DataHub required)
+        run: pytest tests/unit -q --tb=short
+
+      - name: Invariant / trust-boundary tests
+        run: pytest tests/test_invariants.py tests/test_trust_boundaries.py tests/test_deployment_gate.py -q --tb=short
+
+      - name: Offline demo (cannot approve)
+        run: python demo/run_demo.py --offline

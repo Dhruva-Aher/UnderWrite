@@ -2,7 +2,7 @@
 
 Related: [METRICS.md](./METRICS.md) · [ADR_001_DETERMINISTIC_TRAVERSAL.md](./ADR_001_DETERMINISTIC_TRAVERSAL.md) · [invariants.md](./invariants.md)
 
-**Cross-verify (2026-09-30):** Sample evaluate JSON verdicts + latencies Grade **A**. No GitHub Actions workflows on repo — CI badge omitted.
+**Cross-verify (2026-09-30):** Sample evaluate JSON verdicts + latencies Grade **A**. GitHub Actions CI added (unit + offline demo). Local unit run: **49 passed**.
 
 ---
 
@@ -60,3 +60,15 @@ Related: [METRICS.md](./METRICS.md) · [ADR_001_DETERMINISTIC_TRAVERSAL.md](./AD
 | **Decision** | Incomplete lineage → **blocked** (sample reason INCOMPLETE_LINEAGE). |
 | **Evidence** | sample_outputs incomplete_lineage |
 | **Status** | DECIDED · IMPLEMENTED · VERIFIED |
+
+---
+
+## D6 — CI runs offline unit tests without live DataHub
+
+| | |
+|--|--|
+| **Context** | Full verify.sh needs python3.13 venv + optional Docker; recruiters need a green badge. |
+| **Decision** | GitHub Actions: `pytest tests/unit` (+ invariant/trust/gate modules) and `demo/run_demo.py --offline`. Live GMS integration stays optional/local. |
+| **Evidence** | `.github/workflows/ci.yml`; 49 unit tests passed locally 2026-09-30 |
+| **Status** | DECIDED · IMPLEMENTED |
+

@@ -12,7 +12,7 @@ Prefer tag `freeze-grand-prize-ready` for judge reproduction.
 | C5 | Console screenshots of blocked/approved decisions | A | `docs/screenshots/` |
 | C6 | Offline demo cannot produce CI approval | A | README eval table; `demo/run_demo.py --offline` |
 | C7 | Write-back of governance decision to DataHub | A | writeback design + sample `write_back` fields |
-| C8 | GitHub Actions CI on `main` | D | **No** `.github/workflows` on remote (2026-09-30) — do not show CI badge |
+| C8 | GitHub Actions CI: unit + offline demo | A | `.github/workflows/ci.yml` (added 2026-09-30); local `pytest tests/unit` → **49 passed** |
 
 ## Non-claims
 
